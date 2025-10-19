@@ -9,8 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from async_db import Base
-import models
+from src.infrastructure.async_db import Base
 
 config = context.config
 
