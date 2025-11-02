@@ -1,11 +1,9 @@
 from fastapi import FastAPI
-from api.users import auth
-from api.users.file_views import router as file_router
+from api.users import auth, patients, file_views
 from fastapi.middleware.cors import CORSMiddleware
 
 
 app = FastAPI()
-
 
 
 app.add_middleware(
@@ -17,4 +15,5 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
-app.include_router(file_router)
+app.include_router(file_views.router)
+app.include_router(patients.router)

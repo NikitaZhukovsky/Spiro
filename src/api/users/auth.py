@@ -23,11 +23,11 @@ if not SECRET_KEY:
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
-OAUTH2_SCHEME = OAuth2PasswordBearer(tokenUrl="users/login", auto_error=False)
+OAUTH2_SCHEME = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
 
 router = APIRouter(
-    prefix="/users",
-    tags=["Users"]
+    prefix="/auth",
+    tags=["Authentication"]
 )
 
 
@@ -114,9 +114,9 @@ async def get_current_active_user(current_user: models.User = Depends(get_curren
     return current_user
 
 
-@router.post("/register/", response_model=schemas.User)
+@router.post("/register", response_model=schemas.User)
 async def register(user_data: schemas.UserCreate, db: AsyncSession = Depends(get_db)):
-
+    """Регистрация врача"""
     db_user_by_email = await get_user_by_email(db, email=user_data.email)
     if db_user_by_email:
         raise HTTPException(
@@ -129,7 +129,8 @@ async def register(user_data: schemas.UserCreate, db: AsyncSession = Depends(get
         email=user_data.email,
         name=user_data.name,
         surname=user_data.surname,
-        hashed_password=hashed_password
+        hashed_password=hashed_password,
+        is_doctor=True  # Все регистрирующиеся пользователи - врачи
     )
 
     db.add(db_user)
@@ -138,8 +139,9 @@ async def register(user_data: schemas.UserCreate, db: AsyncSession = Depends(get
     return db_user
 
 
-@router.post("/login/", response_model=schemas.TokenWithRefresh)
+@router.post("/login", response_model=schemas.TokenWithRefresh)
 async def login(login_data: schemas.LoginRequest, db: AsyncSession = Depends(get_db)):
+    """Авторизация врача"""
     user = await authenticate_user(db, login_data.email, login_data.password)
     if not user:
         raise HTTPException(
@@ -167,8 +169,9 @@ async def login(login_data: schemas.LoginRequest, db: AsyncSession = Depends(get
     }
 
 
-@router.post("/refresh/", response_model=schemas.Token)
+@router.post("/refresh", response_model=schemas.Token)
 async def refresh_token(refresh_token: str, db: AsyncSession = Depends(get_db)):
+    """Обновление access token"""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate refresh token"
@@ -199,3 +202,28 @@ async def refresh_token(refresh_token: str, db: AsyncSession = Depends(get_db)):
         "access_token": new_access_token,
         "token_type": "bearer"
     }
+
+
+@router.get("/me", response_model=schemas.UserProfile)
+async def get_current_user_profile(current_user: models.User = Depends(get_current_active_user)):
+    """Получить профиль текущего пользователя"""
+    return current_user
+
+
+@router.put("/me", response_model=schemas.UserProfile)
+async def update_current_user_profile(
+        user_data: schemas.UserUpdate,
+        db: AsyncSession = Depends(get_db),
+        current_user: models.User = Depends(get_current_active_user)
+):
+    """Обновить профиль текущего пользователя"""
+    update_data = user_data.dict(exclude_unset=True)
+
+    for field, value in update_data.items():
+        setattr(current_user, field, value)
+
+    db.add(current_user)
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
+
