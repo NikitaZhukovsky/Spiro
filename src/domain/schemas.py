@@ -57,6 +57,8 @@ class UserProfile(BaseModel):
 class PatientBase(BaseModel):
     name: str
     surname: str
+    last_name: Optional[str] = None
+    email: Optional[EmailStr] = None
     age: Optional[int] = None
     gender: Optional[Gender] = None
     height: Optional[float] = None
@@ -72,6 +74,8 @@ class PatientCreate(PatientBase):
 class PatientUpdate(PatientBase):
     name: Optional[str] = None
     surname: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[EmailStr] = None
 
 
 class Patient(PatientBase):
@@ -142,7 +146,6 @@ class TokenWithRefresh(Token):
     refresh_token: str
 
 
-# Validators for Patient schemas
 def add_patient_validators(cls):
     @validator('age')
     def validate_age(cls, v):

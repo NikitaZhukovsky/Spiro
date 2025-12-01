@@ -48,6 +48,8 @@ async def create_patient(
         doctor_id=current_user.id,
         name=patient_data.name,
         surname=patient_data.surname,
+        last_name=patient_data.last_name,
+        email=patient_data.email,
         age=patient_data.age,
         gender=gender,
         height=patient_data.height,

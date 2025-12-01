@@ -13,7 +13,7 @@ class User(Base):
     surname = Column(String)
     hashed_password = Column(String)
     is_active = Column(Boolean, default=True)
-    is_doctor = Column(Boolean, default=True)  # Все пользователи - врачи
+    is_doctor = Column(Boolean, default=True)
 
     # Связи
     patients = relationship("Patient", back_populates="doctor", cascade="all, delete-orphan")
@@ -23,13 +23,13 @@ class Patient(Base):
     __tablename__ = "patients"
 
     id = Column(Integer, primary_key=True, index=True)
-    doctor_id = Column(Integer, ForeignKey("users.id"))  # Врач, который добавил пациента
+    doctor_id = Column(Integer, ForeignKey("users.id"))
 
-    # Основная информация пациента
     name = Column(String, index=True)
     surname = Column(String)
+    last_name = Column(String, nullable=True)
+    email = Column(String, nullable=True)
 
-    # Медицинская информация пациента (только указанные поля)
     age = Column(Integer, nullable=True)
     gender = Column(String, nullable=True)
     height = Column(Float, nullable=True)
@@ -50,7 +50,7 @@ class PatientVideo(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     patient_id = Column(Integer, ForeignKey("patients.id"))
-    title = Column(String, nullable=True)  # Название видео
+    title = Column(String, nullable=True)
     filename = Column(String)
     s3_path = Column(String)
     file_size = Column(Integer)
