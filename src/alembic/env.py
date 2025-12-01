@@ -7,9 +7,11 @@ from alembic import context
 import os
 from dotenv import load_dotenv
 
+from domain.models import *
+
 load_dotenv()
 
-from src.infrastructure.async_db import Base
+from infrastructure.async_db import Base
 
 config = context.config
 
