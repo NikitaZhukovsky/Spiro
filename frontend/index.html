@@ -7,6 +7,23 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@jspdf/standard-fonts@1.0.0/dist/standard-fonts.umd.min.js"></script>
+    <style>
+        /* Дополнительные стили для улучшенного анализа */
+        .enhanced-analysis-section {
+            display: none;
+        }
+
+        .enhanced-analysis-section.active {
+            display: block;
+        }
+    </style>
 </head>
 <body>
     <div class="app-container">
@@ -236,15 +253,6 @@
                                     <span class="stat-label">За месяц</span>
                                 </div>
                             </div>
-                            <div class="stat-card">
-                                <div class="stat-icon videos">
-                                    <i class="fas fa-video"></i>
-                                </div>
-                                <div class="stat-info">
-                                    <span class="stat-value" id="totalPatientVideos">0</span>
-                                    <span class="stat-label">Видео анализов</span>
-                                </div>
-                            </div>
                         </div>
 
                         <!-- Main Content -->
@@ -331,6 +339,10 @@
                                         <i class="fas fa-edit"></i>
                                         Редактировать
                                     </button>
+                                    <button class="btn btn-secondary" id="viewPatientAnalyses">
+                                        <i class="fas fa-chart-line"></i>
+                                        Анализы
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -344,24 +356,6 @@
                                 <div class="stat-info">
                                     <span class="stat-value" id="patientAccountAge">—</span>
                                     <span class="stat-label">В системе</span>
-                                </div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-icon activity">
-                                    <i class="fas fa-video"></i>
-                                </div>
-                                <div class="stat-info">
-                                    <span class="stat-value" id="patientTotalVideos">—</span>
-                                    <span class="stat-label">Видео анализов</span>
-                                </div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-icon storage">
-                                    <i class="fas fa-chart-line"></i>
-                                </div>
-                                <div class="stat-info">
-                                    <span class="stat-value" id="patientLastAnalysis">—</span>
-                                    <span class="stat-label">Последний анализ</span>
                                 </div>
                             </div>
                         </div>
@@ -486,12 +480,6 @@
                                             </div>
                                             <span>Обновить</span>
                                         </button>
-                                        <button class="quick-action" id="generateReport">
-                                            <div class="action-icon report">
-                                                <i class="fas fa-file-medical"></i>
-                                            </div>
-                                            <span>Создать отчет</span>
-                                        </button>
                                         <button class="quick-action" id="scheduleAppointment">
                                             <div class="action-icon calendar">
                                                 <i class="fas fa-calendar-plus"></i>
@@ -514,6 +502,84 @@
                                             <i class="fas fa-save"></i>
                                             Сохранить заметки
                                         </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Patient Analyses Section -->
+                <section id="patientAnalysesSection" class="auth-section">
+                    <div class="profile-dashboard">
+                        <!-- Header -->
+                        <div class="dashboard-header">
+                            <div class="header-content">
+                                <div class="header-title">
+                                    <h1><i class="fas fa-chart-line"></i><span id="patientDetailName">Анализы пациента</span></h1>
+                                    <p>Результаты анализа дыхательных движений</p>
+                                </div>
+                                <div class="header-actions">
+                                    <button class="btn btn-secondary" id="backToVideosFromAnalysis">
+                                        <i class="fas fa-arrow-left"></i>
+                                        Назад к пациенту
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Main Content -->
+                        <div class="dashboard-content">
+                            <!-- Analyses List -->
+                            <div class="content-main">
+                                <div class="content-header">
+                                    <h2>Список анализов</h2>
+                                    <div class="search-box">
+                                        <input type="text" id="analysisSearch" placeholder="Поиск анализов...">
+                                        <i class="fas fa-search"></i>
+                                    </div>
+                                </div>
+
+                                <div class="analyses-container" id="analysesContainer">
+                                    <div class="empty-state">
+                                        <i class="fas fa-chart-bar"></i>
+                                        <h3>Анализы не найдены</h3>
+                                        <p>Запустите первый анализ для видео пациента</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sidebar -->
+                            <div class="content-sidebar">
+                                <!-- Quick Actions -->
+                                <div class="sidebar-section">
+                                    <h3>Быстрые действия</h3>
+                                    <div class="quick-actions">
+                                        <button class="quick-action" id="refreshAnalyses">
+                                            <div class="action-icon refresh">
+                                                <i class="fas fa-sync-alt"></i>
+                                            </div>
+                                            <span>Обновить список</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Information -->
+                                <div class="sidebar-section">
+                                    <h3>Информация</h3>
+                                    <div class="info-panel">
+                                        <div class="info-item">
+                                            <i class="fas fa-info-circle"></i>
+                                            <span>Анализ выполняется в фоновом режиме</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <i class="fas fa-clock"></i>
+                                            <span>Среднее время анализа: 2-5 минут</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <i class="fas fa-chart-line"></i>
+                                            <span>Анализируется частота и амплитуда дыхания</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1027,24 +1093,6 @@
                 <div class="modal-body">
                     <div class="video-player-container">
                         <div class="video-controls-bar">
-                            <button class="control-btn" id="playPauseBtn" title="Воспроизведение/Пауза">
-                                <i class="fas fa-play"></i>
-                            </button>
-                            <button class="control-btn" id="muteBtn" title="Звук">
-                                <i class="fas fa-volume-up"></i>
-                            </button>
-                            <div class="volume-slider-container">
-                                <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="1" class="volume-slider">
-                            </div>
-                            <div class="time-display">
-                                <span id="currentTime">0:00</span> / <span id="duration">0:00</span>
-                            </div>
-                            <div class="progress-container">
-                                <input type="range" id="progressBar" min="0" max="100" value="0" class="progress-bar">
-                            </div>
-                            <button class="control-btn" id="fullscreenBtn" title="Полный экран">
-                                <i class="fas fa-expand"></i>
-                            </button>
                         </div>
 
                         <video id="previewVideo" class="video-player">
@@ -1064,7 +1112,7 @@
                         <div class="video-meta">
                             <span><i class="fas fa-calendar"></i> <span id="previewDate">—</span></span>
                             <span><i class="fas fa-weight-hanging"></i> <span id="previewSize">—</span></span>
-                            <span><i class="fas fa-clock"></i> <span id="previewDuration">—</span></span>
+                            <span id="previewDuration">—</span>
                         </div>
                     </div>
                 </div>
@@ -1080,6 +1128,333 @@
                 </div>
             </div>
         </div>
+
+        <!-- Analysis Modal -->
+        <div class="modal" id="analysisModal">
+            <div class="modal-content wide">
+                <div class="modal-header">
+                    <h2><i class="fas fa-chart-line"></i>Анализ дыхательных движений</h2>
+                    <button type="button" class="modal-close" id="closeAnalysisModal">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="analysisForm" class="auth-form wide-form">
+                        <div id="analysisFormSection">
+
+                            <!-- Analysis Parameters -->
+                            <div class="form-section">
+                                <h3 class="section-title">Параметры анализа</h3>
+
+                                <div class="form-row">
+                                    <div class="input-group">
+                                        <label for="markerColor">
+                                            <i class="fas fa-palette"></i>
+                                            Цвет маркера
+                                        </label>
+                                        <div class="color-input-wrapper">
+                                            <div class="custom-select-wrapper">
+                                                <div class="custom-select" data-target="markerColor">
+                                                    <div class="custom-select__trigger">
+                                                        <span class="custom-select__selected">
+                                                            <span class="color-preview" id="markerColorPreview"></span>
+                                                            Красный
+                                                        </span>
+                                                        <div class="custom-select__arrow">
+                                                            <i class="fas fa-chevron-down"></i>
+                                                        </div>
+                                                    </div>
+                                                    <div class="custom-select__options">
+                                                        <div class="custom-select__option" data-value="#FF0000">
+                                                            <span class="color-preview" style="background-color: #FF0000;"></span>
+                                                            Красный
+                                                        </div>
+                                                        <div class="custom-select__option" data-value="#00FF00">
+                                                            <span class="color-preview" style="background-color: #00FF00;"></span>
+                                                            Зеленый
+                                                        </div>
+                                                        <div class="custom-select__option" data-value="#0000FF">
+                                                            <span class="color-preview" style="background-color: #0000FF;"></span>
+                                                            Синий
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <select id="markerColor" name="marker_color" class="hidden-select" required>
+                                                    <option value="#FF0000" selected>Красный</option>
+                                                    <option value="#00FF00">Зеленый</option>
+                                                    <option value="#0000FF">Синий</option>
+                                                    <option value="#FFFF00">Желтый</option>
+                                                    <option value="#FF00FF">Пурпурный</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="input-group">
+                                        <label for="markerSize">
+                                            <i class="fas fa-ruler"></i>
+                                            Размер маркера (мм)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            id="markerSize"
+                                            name="marker_size_mm"
+                                            required
+                                            placeholder="Например: 10.5"
+                                            min="0.1"
+                                            max="100"
+                                            step="0.1"
+                                            value="10"
+                                        >
+                                    </div>
+                                </div>
+
+                                <div class="form-hint">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span>Маркер должен быть четко виден на видео. Рекомендуемый размер: 5-20 мм.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Analysis Progress -->
+                        <div id="analysisProgress" style="display: none;">
+                            <div class="analysis-progress-card">
+                                <div class="progress-header">
+                                    <div class="progress-icon" id="analysisStatusIcon">
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                    </div>
+                                    <h3>Выполняется анализ</h3>
+                                    <p id="analysisStatusMessage">Обработка видео...</p>
+                                </div>
+
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" id="analysisProgressBar" style="width: 0%"></div>
+                                    </div>
+                                    <div class="progress-text">
+                                        <span id="analysisProgressText">Подготовка...</span>
+                                        <span id="elapsedTime">0 сек</span>
+                                    </div>
+                                </div>
+
+                                <div class="progress-details">
+                                    <div class="detail-item">
+                                        <i class="fas fa-video"></i>
+                                        <span>Анализ дыхательных движений</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <i class="fas fa-microscope"></i>
+                                        <span>Определение частоты и амплитуды</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <i class="fas fa-chart-line"></i>
+                                        <span>Построение графиков</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Analysis Results -->
+                        <div id="analysisResults" style="display: none;">
+                            <div class="results-header">
+                                <h3><i class="fas fa-check-circle success"></i>Анализ завершен!</h3>
+                                <p>Результаты анализа дыхательных движений</p>
+                            </div>
+
+                            <!-- Key Metrics -->
+                            <div class="metrics-grid">
+                                <div class="metric-card">
+                                    <div class="metric-icon">
+                                        <i class="fas fa-lungs"></i>
+                                    </div>
+                                    <div class="metric-info">
+                                        <span class="metric-value" id="breathingRate">—</span>
+                                        <span class="metric-label">Частота дыхания</span>
+                                    </div>
+                                </div>
+
+                                <div class="metric-card">
+                                    <div class="metric-icon">
+                                        <i class="fas fa-expand-arrows-alt"></i>
+                                    </div>
+                                    <div class="metric-info">
+                                        <span class="metric-value" id="amplitude">—</span>
+                                        <span class="metric-label">Амплитуда движений</span>
+                                    </div>
+                                </div>
+
+                                <div class="metric-card">
+                                    <div class="metric-icon">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </div>
+                                    <div class="metric-info">
+                                        <span class="metric-value" id="synchronization">—</span>
+                                        <span class="metric-label">Синхронизация</span>
+                                    </div>
+                                </div>
+
+                                <div class="metric-card">
+                                    <div class="metric-icon">
+                                        <i class="fas fa-clock"></i>
+                                    </div>
+                                    <div class="metric-info">
+                                        <span class="metric-value" id="analysisDuration">—</span>
+                                        <span class="metric-label">Длительность анализа</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Analysis Details -->
+                            <div class="analysis-details">
+                                <h4><i class="fas fa-info-circle"></i>Детали анализа</h4>
+                                <div class="details-list" id="analysisDetails">
+                                    <div class="analysis-detail-item">
+                                        <div class="detail-label">Всего кадров:</div>
+                                        <div class="detail-value" id="totalFrames">—</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Medical Assessment -->
+                            <div class="medical-assessment" id="medicalAssessmentSection">
+                                <h4><i class="fas fa-stethoscope"></i>Медицинская оценка</h4>
+                                <div class="assessment-content">
+                                    <p id="medicalAssessment">Оценка будет доступна после анализа...</p>
+                                </div>
+                            </div>
+                        </div>
+
+                            <!-- Analysis Error -->
+                            <div id="analysisError" style="display: none;">
+                                <div class="error-card">
+                                    <div class="error-icon">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                    </div>
+                                    <h3>Произошла ошибка</h3>
+                                    <p id="analysisErrorMessage">Не удалось выполнить анализ</p>
+                                    <button class="btn btn-primary" id="retryAnalysis">
+                                        <i class="fas fa-redo"></i>
+                                        Попробовать снова
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer" id="analysisModalFooter">
+                        <button type="button" class="btn btn-secondary" id="cancelAnalysis" style="display: none;">
+                            Отмена
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="startAnalysisBtn">
+                            <span class="btn-text">Начать анализ</span>
+                            <div class="btn-loader hidden">
+                                <div class="spinner"></div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal" id="analysisResultsModal">
+        <div class="modal-content extra-large">
+            <div class="modal-header">
+                <h2><i class="fas fa-chart-line"></i><span id="analysisResultsTitle">Результаты анализа</span></h2>
+                <button class="modal-close" id="closeAnalysisResultsModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Заголовок анализа -->
+                <div class="analysis-results-header" id="analysisResultsHeader">
+                    <h3 id="analysisVideoTitleResult">Анализ видео</h3>
+                    <div class="analysis-meta-info">
+                        <span><i class="fas fa-calendar"></i> <span id="analysisDateResult">—</span></span>
+                        <span><i class="fas fa-film"></i> <span id="analysisFramesResult">—</span></span>
+                    </div>
+                </div>
+
+                <!-- Основные метрики -->
+                <div class="results-metrics-container">
+                    <h4><i class="fas fa-chart-bar"></i> Основные показатели</h4>
+                    <div class="metrics-grid-large">
+                        <div class="metric-card-large">
+                            <div class="metric-icon-large">
+                                <i class="fas fa-lungs"></i>
+                            </div>
+                            <div class="metric-content-large">
+                                <div class="metric-label-large">Частота дыхания</div>
+                                <div class="metric-value-large" id="breathingRateResultDetailed">—</div>
+                            </div>
+                        </div>
+
+                        <div class="metric-card-large">
+                            <div class="metric-icon-large">
+                                <i class="fas fa-expand-arrows-alt"></i>
+                            </div>
+                            <div class="metric-content-large">
+                                <div class="metric-label-large">Амплитуда</div>
+                                <div class="metric-value-large" id="amplitudeResultDetailed">—</div>
+                            </div>
+                        </div>
+
+                        <div class="metric-card-large">
+                            <div class="metric-icon-large">
+                                <i class="fas fa-stethoscope"></i>
+                            </div>
+                            <div class="metric-content-large">
+                                <div class="metric-label-large">Статус</div>
+                                <div class="metric-value-large" id="analysisStatusResult">—</div>
+                                <div class="metric-description-large">Анализ</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Графики анализа -->
+                <div class="analysis-plots-section" id="analysisPlotsSection">
+                    <h4><i class="fas fa-chart-area"></i> Графики анализа</h4>
+                    <div class="plots-grid-large" id="analysisPlotsGrid">
+                        <div class="plot-placeholder-large">
+                            <i class="fas fa-chart-line"></i>
+                            <p>Графики загружаются...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Детали анализа -->
+                <div class="analysis-details-section">
+                    <h4><i class="fas fa-info-circle"></i> Детали анализа</h4>
+                    <div class="details-grid">
+                        <div class="detail-item-large">
+                            <span class="detail-label-large">Цвет маркера:</span>
+                            <span class="detail-value-large" id="markerColorResult">—</span>
+                        </div>
+                        <div class="detail-item-large">
+                            <span class="detail-label-large">Размер маркера:</span>
+                            <span class="detail-value-large" id="markerSizeResult">— мм</span>
+                        </div>
+                        <div class="detail-item-large">
+                            <span class="detail-label-large">Время анализа:</span>
+                            <span class="detail-value-large" id="processingTimeResult">— сек</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Медицинская оценка -->
+                <div class="medical-assessment-section" id="medicalAssessmentSection">
+                    <h4><i class="fas fa-stethoscope"></i> Медицинская оценка</h4>
+                    <div class="assessment-content" id="medicalAssessmentContent">
+                        <p>Оценка загружается...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="closeResultsModalBtn">
+                    Закрыть
+                </button>
+            </div>
+        </div>
+    </div>
 
         <!-- Toast Notifications -->
         <div id="toastContainer" class="toast-container"></div>
@@ -1149,8 +1524,51 @@
                 </div>
             </div>
         </div>
+
+        <!-- Confirm Delete Analysis Modal -->
+        <div class="modal" id="confirmDeleteAnalysisModal">
+            <div class="modal-content confirm-modal">
+                <div class="modal-header">
+                    <h2><i class="fas fa-exclamation-triangle"></i>Подтверждение удаления</h2>
+                    <button class="modal-close" id="closeConfirmDeleteAnalysis">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="confirm-content">
+                        <div class="confirm-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="confirm-text">
+                            <h3>Удалить анализ?</h3>
+                            <p>Вы уверены, что хотите удалить анализ <strong id="deleteAnalysisId">#0</strong> от <strong id="deleteAnalysisDate">—</strong>?</p>
+                            <p class="confirm-warning">Это действие нельзя отменить. Все результаты анализа будут удалены безвозвратно.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="cancelDeleteAnalysis">
+                        Отмена
+                    </button>
+                    <button class="btn btn-danger" id="confirmDeleteAnalysis">
+                        <i class="fas fa-trash"></i>
+                        Удалить анализ
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="app.js"></script>
+    <script>
+        // Дополнительный JavaScript для инициализации улучшенного анализа
+        document.addEventListener('DOMContentLoaded', function() {
+            // Инициализация улучшенного модального окна анализа
+            // Связываем менеджеры
+            document.addEventListener('authAppReady', function(e) {
+                const authApp = e.detail.authApp;
+            });
+        });
+    </script>
 </body>
 </html>

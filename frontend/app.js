@@ -1,3 +1,447 @@
+class PDFReportGenerator {
+    constructor() {
+        if (typeof jspdf === 'undefined') {
+            console.error('jsPDF не загружен');
+            throw new Error('jsPDF не загружен');
+        }
+
+        const { jsPDF } = window.jspdf;
+
+        this.doc = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4',
+            compress: true
+        });
+
+        this.margin = 10;
+        this.pageWidth = 210;
+        this.pageHeight = 297;
+        this.currentY = this.margin;
+
+        // ВАЖНО: Используем стандартный шрифт который поддерживает кириллицу
+        this.setupFonts();
+    }
+
+    setupFonts() {
+        // Пробуем использовать разные шрифты для кириллицы
+        try {
+            // Пробуем стандартные шрифты которые могут поддерживать кириллицу
+            const availableFonts = ['helvetica', 'times', 'courier'];
+
+            for (const font of availableFonts) {
+                try {
+                    this.doc.setFont(font);
+                    this.doc.setFontSize(10);
+                    // Тест русских символов
+                    this.doc.text('Тест', 10, 10);
+                    this.doc.deletePage(1); // Удаляем тестовую страницу
+                    console.log(`Используется шрифт: ${font}`);
+                    break;
+                } catch (e) {
+                    continue;
+                }
+            }
+
+            // Если ни один стандартный не подошел, создаем новую страницу
+            if (!this.doc.internal.pages.length) {
+                this.doc.addPage();
+            }
+
+        } catch (error) {
+            console.warn('Ошибка настройки шрифтов:', error);
+            // Используем helvetica по умолчанию
+            this.doc.setFont("helvetica");
+            this.doc.setFontSize(10);
+        }
+    }
+
+    // Добавляем метод для кодирования текста
+    encodeText(text) {
+        if (!text) return '—';
+
+        // Простая замена проблемных символов
+        return String(text)
+            .replace(/[^\x00-\x7F]/g, '') // Удаляем не-ASCII символы временно
+            .replace(/—/g, '-') // Заменяем длинное тире на обычное
+            .replace(/«|»/g, '"') // Заменяем кавычки
+            .replace(/ё/g, 'е') // Заменяем букву ё
+            .replace(/Ё/g, 'Е'); // Заменяем букву Ё
+    }
+
+    // Обновленный safeString с кодированием
+    safeString(value) {
+        if (value === null || value === undefined) return '—';
+        const str = String(value);
+        return this.encodeText(str);
+    }
+
+    async generateAnalysisReport(patient, analysis, plots = []) {
+        try {
+            this.currentY = this.margin;
+
+            this.addHeader(patient, analysis);
+            this.addCompactInfo(patient, analysis);
+            this.addMetricsTable(analysis);
+
+            if (plots.length > 0) {
+                await this.addPlots(plots);
+            }
+
+            this.addMedicalAssessment(analysis);
+            this.addFooter();
+
+            const fileName = `Анализ_${this.safeString(patient.surname)}_${this.safeString(patient.name)}.pdf`;
+            this.doc.save(fileName);
+
+            return this.doc;
+        } catch (error) {
+            console.error('Ошибка при генерации PDF:', error);
+            throw error;
+        }
+    }
+
+    addHeader(patient, analysis) {
+        this.doc.setFillColor(41, 128, 185);
+        this.doc.rect(0, 0, this.pageWidth, 25, 'F');
+
+        this.doc.setTextColor(255, 255, 255);
+        this.doc.setFontSize(18);
+        this.doc.setFont("helvetica", "bold");
+        this.doc.text("Отчет анализа дыхания", this.pageWidth / 2, 15, { align: 'center' });
+
+        this.doc.setFontSize(11);
+        const fullName = `${this.safeString(patient.surname)} ${this.safeString(patient.name)}`;
+        this.doc.text(`Пациент: ${fullName}`, 10, 35);
+
+        const analysisDate = new Date(analysis.created_at);
+        const dateString = analysisDate.toLocaleDateString('ru-RU');
+        this.doc.text(`Дата анализа: ${this.safeString(dateString)}`, 10, 42);
+
+        this.currentY = 50;
+    }
+
+    addCompactInfo(patient, analysis) {
+        const data = [
+            ['ПАЦИЕНТ', 'АНАЛИЗ'],
+            ['Фамилия:', this.safeString(patient.surname), 'ID анализа:', this.safeString(analysis.id)],
+            ['Имя:', this.safeString(patient.name), 'Видео:', this.safeString(analysis.video_title || `#${analysis.video_id}`)],
+            ['Возраст:', patient.age ? `${this.safeString(patient.age)} лет` : '—', 'Статус:', this.getStatusText(analysis.status)],
+            ['Пол:', this.formatGender(patient.gender), 'Время:', analysis.processing_time_seconds ? `${this.safeString(analysis.processing_time_seconds.toFixed(1))} сек` : '—'],
+            ['Рост:', patient.height ? `${this.safeString(patient.height)} см` : '—', 'Кадры:', this.safeString(analysis.total_frames)],
+            ['Вес:', patient.weight ? `${this.safeString(patient.weight)} кг` : '—', 'Маркер:', `${this.formatMarkerColor(analysis.marker_color)} ${analysis.marker_size_mm ? `${this.safeString(analysis.marker_size_mm)} мм` : ''}`],
+        ];
+
+        let x = this.margin;
+        let y = this.currentY + 5;
+
+        this.doc.setFontSize(10);
+        this.doc.setFont("helvetica", "bold");
+
+        this.doc.text('ПАЦИЕНТ', x, y);
+        this.doc.text('АНАЛИЗ', x + 90, y);
+
+        y += 7;
+        this.doc.setDrawColor(200, 200, 200);
+        this.doc.line(x, y, x + 190, y);
+        y += 5;
+
+        this.doc.setFont("helvetica", "normal");
+
+        for (let i = 1; i < data.length; i++) {
+            const row = data[i];
+
+            this.doc.setFont("helvetica", "bold");
+            this.doc.text(this.safeString(row[0]), x, y);
+            this.doc.setFont("helvetica", "normal");
+            this.doc.text(this.safeString(row[1]), x + 30, y);
+
+            this.doc.setFont("helvetica", "bold");
+            this.doc.text(this.safeString(row[2]), x + 90, y);
+            this.doc.setFont("helvetica", "normal");
+            this.doc.text(this.safeString(row[3]), x + 120, y);
+
+            y += 6;
+
+            if (i < data.length - 1) {
+                this.doc.setDrawColor(240, 240, 240);
+                this.doc.line(x, y - 1, x + 190, y - 1);
+            }
+        }
+
+        this.currentY = y + 10;
+    }
+
+    addMetricsTable(analysis) {
+        const breathingRate = analysis.breathing_rate_mean_bpm ?
+            `${this.safeString(analysis.breathing_rate_mean_bpm.toFixed(1))} вд/мин` : '—';
+
+        const amplitude = analysis.amplitude_mean_mm ?
+            `${this.safeString(analysis.amplitude_mean_mm.toFixed(1))} ± ${this.safeString(analysis.amplitude_std_mm?.toFixed(1) || '0.0')} мм` : '—';
+
+        const synchronization = analysis.synchronization_index ?
+            `${this.safeString((analysis.synchronization_index * 100).toFixed(1))}%` : '—';
+
+        const metrics = [
+            {
+                title: 'Частота дыхания',
+                value: breathingRate,
+                description: 'Средняя частота дыхания',
+                color: [41, 128, 185]
+            },
+            {
+                title: 'Амплитуда',
+                value: amplitude,
+                description: 'Амплитуда движений',
+                color: [39, 174, 96]
+            },
+            {
+                title: 'Синхронизация',
+                value: synchronization,
+                description: 'Синхронность дыхания',
+                color: [142, 68, 173]
+            }
+        ];
+
+        let x = this.margin;
+        let y = this.currentY;
+        const colWidth = 60;
+        const rowHeight = 25;
+
+        this.doc.setFontSize(12);
+        this.doc.setFont("helvetica", "bold");
+        this.doc.text('ОСНОВНЫЕ ПОКАЗАТЕЛИ', x, y);
+        y += 8;
+
+        metrics.forEach((metric, index) => {
+            const colX = x + (index * colWidth);
+
+            this.doc.setFillColor(metric.color[0], metric.color[1], metric.color[2], 0.1);
+            this.doc.roundedRect(colX, y, colWidth - 5, rowHeight, 2, 2, 'F');
+
+            this.doc.setFontSize(10);
+            this.doc.setFont("helvetica", "bold");
+            this.doc.text(this.safeString(metric.title), colX + 5, y + 7);
+
+            this.doc.setFontSize(14);
+            this.doc.text(this.safeString(metric.value), colX + 5, y + 16);
+
+            this.doc.setFontSize(8);
+            this.doc.setTextColor(100, 100, 100);
+            this.doc.text(this.safeString(metric.description), colX + 5, y + 22);
+
+            this.doc.setTextColor(0, 0, 0);
+        });
+
+        this.currentY = y + rowHeight + 10;
+    }
+
+    async addPlots(plots) {
+        this.doc.setFontSize(12);
+        this.doc.setFont("helvetica", "bold");
+        this.doc.text('ГРАФИКИ АНАЛИЗА', this.margin, this.currentY);
+        this.currentY += 8;
+
+        const plotsPerRow = 2;
+        const imgWidth = 95;
+        const imgHeight = 70;
+
+        for (let i = 0; i < plots.length; i += plotsPerRow) {
+            const rowPlots = plots.slice(i, i + plotsPerRow);
+
+            if (this.currentY + imgHeight > this.pageHeight - 30) {
+                this.doc.addPage();
+                this.currentY = this.margin;
+            }
+
+            for (let j = 0; j < rowPlots.length; j++) {
+                const plot = rowPlots[j];
+                const x = this.margin + (j * (imgWidth + 5));
+
+                try {
+                    const image = await this.getPlotImage(plot.url);
+                    if (image) {
+                        this.doc.addImage(
+                            image.dataUrl,
+                            'JPEG',
+                            x,
+                            this.currentY,
+                            imgWidth,
+                            imgHeight
+                        );
+
+                        this.doc.setFontSize(9);
+                        this.doc.setTextColor(0, 0, 0);
+                        const plotTitle = plot.title || `График ${i + j + 1}`;
+                        this.doc.text(
+                            this.safeString(plotTitle),
+                            x + imgWidth / 2,
+                            this.currentY + imgHeight + 5,
+                            { align: 'center', maxWidth: imgWidth }
+                        );
+                    }
+                } catch (error) {
+                    console.error('Ошибка при добавлении графика:', error);
+                    this.doc.setFontSize(9);
+                    this.doc.setTextColor(150, 150, 150);
+                    this.doc.text('График недоступен', x + imgWidth / 2, this.currentY + imgHeight / 2, { align: 'center' });
+                }
+            }
+
+            this.currentY += imgHeight + 15;
+
+            if (i + plotsPerRow < plots.length) {
+                this.currentY += 5;
+            }
+        }
+
+        this.doc.setTextColor(0, 0, 0);
+    }
+
+    async getPlotImage(plotUrl) {
+        try {
+            const response = await fetch(plotUrl);
+            if (!response.ok) return null;
+
+            const blob = await response.blob();
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    resolve({
+                        dataUrl: reader.result
+                    });
+                };
+                reader.readAsDataURL(blob);
+            });
+        } catch (error) {
+            console.error('Ошибка загрузки графика:', error);
+            return null;
+        }
+    }
+
+    addMedicalAssessment(analysis) {
+        let assessmentText = "Медицинская оценка не доступна";
+
+        if (analysis.medical_assessment && analysis.medical_assessment !== "Оценка загружается...") {
+            assessmentText = analysis.medical_assessment;
+        } else if (analysis.text_report) {
+            const reportLines = analysis.text_report.split('\n');
+            let found = false;
+
+            for (let i = 0; i < reportLines.length; i++) {
+                const line = reportLines[i].trim();
+                if (line.includes('ОБЩАЯ ИНФОРМАЦИЯ') || line.includes('МЕДИЦИНСКАЯ ОЦЕНКА')) {
+                    found = true;
+                    continue;
+                }
+                if (found && (line.includes('ЛИНИЯ 1:') || line.includes('================================'))) {
+                    break;
+                }
+                if (found && line && line !== '') {
+                    assessmentText = line;
+                    break;
+                }
+            }
+        }
+
+        if (this.currentY + 50 > this.pageHeight - 30) {
+            this.doc.addPage();
+            this.currentY = this.margin;
+        }
+
+        this.doc.setFontSize(12);
+        this.doc.setFont("helvetica", "bold");
+        this.doc.text('МЕДИЦИНСКАЯ ОЦЕНКА', this.margin, this.currentY);
+        this.currentY += 8;
+
+        this.doc.setFontSize(10);
+        this.doc.setFont("helvetica", "normal");
+
+        const maxWidth = this.pageWidth - (2 * this.margin);
+        const lines = this.doc.splitTextToSize(this.safeString(assessmentText), maxWidth);
+
+        lines.forEach(line => {
+            if (this.currentY > this.pageHeight - 30) {
+                this.doc.addPage();
+                this.currentY = this.margin;
+            }
+            this.doc.text(this.safeString(line), this.margin, this.currentY);
+            this.currentY += 5;
+        });
+
+        this.currentY += 10;
+    }
+
+    addFooter() {
+        const totalPages = this.doc.internal.getNumberOfPages();
+        const currentYear = new Date().getFullYear();
+
+        for (let i = 1; i <= totalPages; i++) {
+            this.doc.setPage(i);
+
+            this.doc.setFontSize(8);
+            this.doc.setTextColor(150, 150, 150);
+
+            const pageText = `Страница ${this.safeString(i)} из ${this.safeString(totalPages)}`;
+            this.doc.text(
+                pageText,
+                this.pageWidth - this.margin - 20,
+                this.pageHeight - 10,
+                { align: 'right' }
+            );
+
+            const copyrightText = `SpiroApp © ${this.safeString(currentYear)}`;
+            this.doc.text(
+                copyrightText,
+                this.margin,
+                this.pageHeight - 10
+            );
+        }
+
+        this.doc.setFontSize(10);
+        this.doc.setTextColor(0, 0, 0);
+    }
+
+    formatGender(gender) {
+        switch(gender) {
+            case 'male': return 'Мужской';
+            case 'female': return 'Женский';
+            default: return '—';
+        }
+    }
+
+    formatSmokingStatus(status) {
+        switch(status) {
+            case 'non_smoker': return 'Не курю';
+            case 'active_smoker': return 'Активный курильщик';
+            case 'passive_smoker': return 'Пассивный курильщик';
+            default: return '—';
+        }
+    }
+
+    getStatusText(status) {
+        switch(status) {
+            case 'processing': return 'Обработка';
+            case 'completed': return 'Завершено';
+            case 'failed': return 'Ошибка';
+            default: return this.safeString(status);
+        }
+    }
+
+    formatMarkerColor(color) {
+        const colorMap = {
+            'red': 'Красный',
+            'green': 'Зеленый',
+            'blue': 'Синий',
+            '#FF0000': 'Красный',
+            '#00FF00': 'Зеленый',
+            '#0000FF': 'Синий'
+        };
+        return colorMap[color] || this.safeString(color);
+    }
+}
+
+
 class CustomSelect {
     constructor(selectElement) {
         this.select = selectElement;
@@ -158,6 +602,7 @@ class PatientManager {
         this.patients = [];
         this.currentPatient = null;
         this.videoManager = null;
+        this.analysisManager = null;
         this.pendingDeletePatientId = null;
         this.init();
     }
@@ -561,6 +1006,12 @@ class PatientManager {
                 this.handlePatientVideoUpload();
                 return;
             }
+
+            // Просмотр анализов пациента
+            if (e.target.closest('#viewPatientAnalyses')) {
+                this.viewPatientAnalyses();
+                return;
+            }
         });
 
         // Исправленные обработчики форм
@@ -875,15 +1326,9 @@ class PatientManager {
         const recentPatients = this.patients.filter(patient => {
             return true;
         }).length;
-        const totalVideos = this.getTotalVideosCount();
 
         document.getElementById('totalPatientsCount').textContent = totalPatients;
         document.getElementById('recentPatients').textContent = recentPatients;
-        document.getElementById('totalPatientVideos').textContent = totalVideos;
-    }
-
-    getTotalVideosCount() {
-        return this.patients.reduce((total, patient) => total + (patient.video_count || 0), 0);
     }
 
     openPatientModal(patient = null) {
@@ -1202,6 +1647,28 @@ class PatientManager {
         }
         this.videoManager.setCurrentPatient(patient.id);
         this.videoManager.loadVideos();
+
+        // Инициализировать менеджер анализа
+        if (!this.analysisManager) {
+            this.analysisManager = new RespiratoryAnalysisManager(this.authApp, this, this.videoManager);
+        }
+        this.analysisManager.setCurrentPatient(patient.id);
+        this.analysisManager.loadAnalyses();
+    }
+
+    viewPatientAnalyses() {
+        if (!this.currentPatient) {
+            this.authApp.showToast('Ошибка', 'Пациент не выбран', 'error');
+            return;
+        }
+
+        // Показываем секцию анализов
+        this.authApp.showSection('patientAnalyses');
+
+        // Загружаем анализы
+        if (this.analysisManager) {
+            this.analysisManager.loadAnalyses();
+        }
     }
 
     showPatientsList() {
@@ -1470,11 +1937,8 @@ class PatientManager {
         this.updatePatientStats(patient);
     }
 
-    // Метод для обновления статистики пациента
+    // Метод для обновления статистики пациента - ОБНОВЛЕН: убраны виджеты видео
     updatePatientStats(patient) {
-        const totalVideos = patient.video_count || 0;
-        document.getElementById('patientTotalVideos').textContent = totalVideos;
-
         // Вычисляем время в системе
         if (patient.created_at) {
             const createdDate = new Date(patient.created_at);
@@ -1485,9 +1949,6 @@ class PatientManager {
         } else {
             document.getElementById('patientAccountAge').textContent = '—';
         }
-
-        // Обновляем дату последнего анализа (можно добавить логику из данных пациента)
-        document.getElementById('patientLastAnalysis').textContent = patient.last_analysis_date || '—';
     }
 
     formatGender(gender) {
@@ -1596,6 +2057,14 @@ class PatientVideoManager {
             if (e.target.closest('.btn-preview')) {
                 const videoId = e.target.closest('.btn-preview').dataset.videoId;
                 this.previewVideo(videoId);
+                return;
+            }
+
+            if (e.target.closest('.btn-analyze')) {
+                const videoId = e.target.closest('.btn-analyze').dataset.videoId;
+                if (this.patientManager.analysisManager) {
+                    this.patientManager.analysisManager.openAnalysisModal(videoId);
+                }
                 return;
             }
 
@@ -1874,7 +2343,6 @@ class PatientVideoManager {
             return;
         }
 
-        // ИСПРАВЛЕНИЕ: Отображаем title вместо filename
         videosContainer.innerHTML = existingVideos.map(video => `
             <div class="video-card grid-view">
                 <div class="video-thumbnail">
@@ -1890,9 +2358,6 @@ class PatientVideoManager {
                     <div class="video-actions">
                         <button class="btn-action btn-preview" data-video-id="${video.id}" title="Просмотр">
                             <i class="fas fa-play"></i>
-                        </button>
-                        <button class="btn-action btn-download" data-video-id="${video.id}" title="Скачать">
-                            <i class="fas fa-download"></i>
                         </button>
                         <button class="btn-action btn-delete" data-video-id="${video.id}" title="Удалить">
                             <i class="fas fa-trash"></i>
@@ -2066,8 +2531,10 @@ class PatientVideoManager {
 
     analyzeCurrentVideo() {
         const modal = document.getElementById('previewModal');
-        if (modal.currentVideoId) {
-            this.authApp.showToast('Анализ', 'Запуск анализа видео...', 'info');
+        if (modal.currentVideoId && this.patientManager.analysisManager) {
+            this.patientManager.analysisManager.openQuickAnalysis(modal.currentVideoId);
+            // Закрываем модальное окно просмотра после запуска анализа
+            this.closePreviewModal();
         }
     }
 
@@ -2100,6 +2567,1272 @@ class PatientVideoManager {
             .replace(/'/g, "&#039;");
     }
 }
+
+class RespiratoryAnalysisManager {
+    constructor(authApp, patientManager, videoManager) {
+        this.authApp = authApp;
+        this.patientManager = patientManager;
+        this.videoManager = videoManager;
+        this.baseURL = authApp.baseURL;
+        this.currentPatientId = null;
+        this.currentVideoId = null;
+        this.analyses = [];
+        this.filteredAnalyses = [];
+        this.pendingAnalysisId = null;
+        this.statusCheckInterval = null;
+        this.currentAnalysisId = null;
+        this.searchTerm = '';
+
+        this.init();
+    }
+
+    init() {
+        this.setupEventListeners();
+        this.setupAnalysisModal();
+        this.setupAnalysisResultModal();
+        this.setupConfirmModals();
+        this.setupSearch();
+    }
+
+    setupEventListeners() {
+        document.addEventListener('click', (e) => {
+            // Кнопка "Анализировать" на видео
+            if (e.target.closest('.btn-analyze')) {
+                const videoId = e.target.closest('.btn-analyze').dataset.videoId;
+                this.openAnalysisModal(videoId);
+                return;
+            }
+
+            // Кнопка "Начать анализ" в модальном окне
+            if (e.target.closest('#startAnalysisBtn')) {
+                e.preventDefault();
+                this.startAnalysis();
+                return;
+            }
+
+            // Закрыть модальное окно анализа
+            if (e.target.closest('#closeAnalysisModal') || e.target.closest('#cancelAnalysis')) {
+                this.closeAnalysisModal();
+                return;
+            }
+
+            // Просмотр анализа
+            if (e.target.closest('.btn-analysis-view')) {
+                const analysisId = e.target.closest('.btn-analysis-view').dataset.analysisId;
+                this.viewAnalysis(analysisId);
+                return;
+            }
+
+            // Удаление анализа
+            if (e.target.closest('.btn-analysis-delete')) {
+                const analysisId = e.target.closest('.btn-analysis-delete').dataset.analysisId;
+                this.deleteAnalysis(analysisId);
+                return;
+            }
+
+            // Назад к списку видео из секции анализов
+            if (e.target.closest('#backToVideosFromAnalysis')) {
+                this.patientManager.authApp.showSection('patientDetail');
+                return;
+            }
+
+            // Обновить список анализов
+            if (e.target.closest('#refreshAnalyses')) {
+                this.loadAnalyses();
+                return;
+            }
+
+            // Кнопка "Анализировать" в модальном окне просмотра видео
+            if (e.target.closest('#analyzeVideo')) {
+                const modal = document.getElementById('previewModal');
+                if (modal.currentVideoId) {
+                    this.openAnalysisModal(modal.currentVideoId);
+                    // Закрываем окно просмотра видео
+                    if (this.videoManager) {
+                        this.videoManager.closePreviewModal();
+                    }
+                }
+                return;
+            }
+
+            // Закрыть модальное окно с результатами
+            if (e.target.closest('#closeAnalysisResultsModal') || e.target.closest('#closeResultsModalBtn')) {
+                this.closeAnalysisResultModal();
+                return;
+            }
+
+            // Скачать отчет PDF - ОСНОВНАЯ КНОПКА
+            if (e.target.closest('#downloadAnalysisResultBtn')) {
+                this.generateAndDownloadPDFReport();
+                return;
+            }
+
+            // Скачать графики (старая функция)
+            if (e.target.closest('#downloadAnalysisPlotsBtn')) {
+                this.downloadAnalysisPlots();
+                return;
+            }
+        });
+
+        // Кнопки подтверждения удаления анализа
+        document.getElementById('confirmDeleteAnalysis').addEventListener('click', () => this.executeAnalysisDelete());
+        document.getElementById('cancelDeleteAnalysis').addEventListener('click', () => this.closeConfirmDeleteAnalysisModal());
+        document.getElementById('closeConfirmDeleteAnalysis').addEventListener('click', () => this.closeConfirmDeleteAnalysisModal());
+    }
+
+    setupSearch() {
+        const searchInput = document.getElementById('analysisSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                this.searchTerm = e.target.value.trim();
+                this.filterAnalyses();
+            });
+
+            // Очистка поиска при нажатии на крестик
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    searchInput.value = '';
+                    this.searchTerm = '';
+                    this.filterAnalyses();
+                }
+            });
+        }
+    }
+
+    setupAnalysisModal() {
+        const modal = document.getElementById('analysisModal');
+        const form = document.getElementById('analysisForm');
+
+        const customSelects = modal.querySelectorAll('.custom-select');
+        customSelects.forEach(select => {
+            new CustomSelect(select);
+        });
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+
+        const markerColorSelect = document.getElementById('markerColor');
+        if (markerColorSelect) {
+            markerColorSelect.addEventListener('change', (e) => {
+                this.updateMarkerColorPreview(e.target.value);
+            });
+        }
+
+        this.updateMarkerColorPreview('#FF0000');
+    }
+
+    setupAnalysisResultModal() {
+        this.addModalScrollStyles();
+    }
+
+    addModalScrollStyles() {
+        const style = document.createElement('style');
+        style.textContent = `
+            .modal-content.extra-large .modal-body {
+                max-height: calc(90vh - 140px);
+                overflow-y: auto;
+                padding: 2rem;
+            }
+
+            .plots-grid-large {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+                gap: 1.5rem;
+                margin-top: 1rem;
+            }
+
+            .plot-card-large {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                overflow: hidden;
+                transition: var(--transition);
+            }
+
+            .plot-card-large:hover {
+                transform: translateY(-2px);
+                box-shadow: var(--shadow-md);
+            }
+
+            .plot-image-container {
+                width: 100%;
+                height: 300px;
+                background: var(--background);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+                border-bottom: 1px solid var(--border);
+            }
+
+            .plot-image-large {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+                padding: 1rem;
+            }
+
+            .plot-info-large {
+                padding: 1rem;
+            }
+
+            .plot-title-large {
+                color: var(--text-primary);
+                font-size: 1rem;
+                font-weight: 600;
+                margin-bottom: 0.5rem;
+            }
+
+            .plot-description-large {
+                color: var(--text-secondary);
+                font-size: 0.85rem;
+                line-height: 1.4;
+            }
+
+            .plot-placeholder-large {
+                text-align: center;
+                padding: 4rem 2rem;
+                color: var(--text-secondary);
+                grid-column: 1 / -1;
+            }
+
+            .plot-placeholder-large i {
+                font-size: 3rem;
+                margin-bottom: 1rem;
+                opacity: 0.5;
+            }
+
+            .plot-loading {
+                text-align: center;
+                padding: 2rem;
+                color: var(--text-secondary);
+            }
+
+            .plot-error {
+                text-align: center;
+                padding: 2rem;
+                color: var(--error);
+            }
+
+            .modal-content.extra-large .modal-body::-webkit-scrollbar {
+                width: 8px;
+            }
+
+            .modal-content.extra-large .modal-body::-webkit-scrollbar-track {
+                background: var(--surface-light);
+                border-radius: 4px;
+            }
+
+            .modal-content.extra-large .modal-body::-webkit-scrollbar-thumb {
+                background: var(--border);
+                border-radius: 4px;
+            }
+
+            .modal-content.extra-large .modal-body::-webkit-scrollbar-thumb:hover {
+                background: var(--text-tertiary);
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    setupConfirmModals() {
+        document.getElementById('confirmDeleteAnalysis').addEventListener('click', () => this.executeAnalysisDelete());
+        document.getElementById('cancelDeleteAnalysis').addEventListener('click', () => this.closeConfirmDeleteAnalysisModal());
+        document.getElementById('closeConfirmDeleteAnalysis').addEventListener('click', () => this.closeConfirmDeleteAnalysisModal());
+    }
+
+    updateMarkerColorPreview(color) {
+        const preview = document.getElementById('markerColorPreview');
+        if (preview) {
+            preview.style.backgroundColor = color;
+            preview.style.borderColor = this.adjustColorBrightness(color, -30);
+        }
+    }
+
+    adjustColorBrightness(color, percent) {
+        const num = parseInt(color.replace("#", ""), 16);
+        const amt = Math.round(2.55 * percent);
+        const R = (num >> 16) + amt;
+        const G = (num >> 8 & 0x00FF) + amt;
+        const B = (num & 0x0000FF) + amt;
+
+        return "#" + (
+            0x1000000 +
+            (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+            (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+            (B < 255 ? B < 1 ? 0 : B : 255)
+        ).toString(16).slice(1);
+    }
+
+    setCurrentPatient(patientId) {
+        this.currentPatientId = patientId;
+    }
+
+    setCurrentVideo(videoId) {
+        this.currentVideoId = videoId;
+    }
+
+    openAnalysisModal(videoId) {
+        if (!this.currentPatientId) {
+            this.authApp.showToast('Ошибка', 'Пациент не выбран', 'error');
+            return;
+        }
+
+        this.setCurrentVideo(videoId);
+        const modal = document.getElementById('analysisModal');
+
+        // Сбрасываем форму и показываем секцию с параметрами
+        document.getElementById('analysisForm').reset();
+        document.getElementById('analysisProgress').style.display = 'none';
+        document.getElementById('analysisResults').style.display = 'none';
+        document.getElementById('analysisError').style.display = 'none';
+        document.getElementById('analysisFormSection').style.display = 'block';
+        document.getElementById('startAnalysisBtn').disabled = false;
+        document.getElementById('startAnalysisBtn').querySelector('.btn-text').textContent = 'Начать анализ';
+
+        this.updateMarkerColorPreview('#FF0000');
+        modal.classList.add('active');
+    }
+
+    closeAnalysisModal() {
+        const modal = document.getElementById('analysisModal');
+        modal.classList.remove('active');
+        this.stopStatusCheck();
+    }
+
+    async startAnalysis() {
+        if (!this.currentPatientId || !this.currentVideoId) {
+            this.authApp.showToast('Ошибка', 'Не выбраны пациент или видео', 'error');
+            return;
+        }
+
+        const form = document.getElementById('analysisForm');
+        const formData = new FormData(form);
+
+        const markerColor = formData.get('marker_color');
+        const markerSizeStr = formData.get('marker_size_mm');
+
+        if (!markerColor || !markerSizeStr) {
+            this.authApp.showToast('Ошибка', 'Заполните все обязательные поля', 'error');
+            return;
+        }
+
+        const markerSize = parseFloat(markerSizeStr);
+        if (isNaN(markerSize) || markerSize <= 0 || markerSize > 100) {
+            this.authApp.showToast('Ошибка', 'Размер маркера должен быть от 0.1 до 100 мм', 'error');
+            return;
+        }
+
+        const colorMap = {
+            '#FF0000': 'red',
+            '#00FF00': 'green',
+            '#0000FF': 'blue'
+        };
+
+        const colorString = colorMap[markerColor] || markerColor;
+
+        const analysisData = {
+            video_id: parseInt(this.currentVideoId),
+            marker_color: colorString,
+            marker_size_mm: markerSize
+        };
+
+        const startBtn = document.getElementById('startAnalysisBtn');
+        this.authApp.setLoadingState(startBtn, true);
+
+        try {
+            const response = await fetch(`${this.baseURL}/respiratory-analysis/analyze/${this.currentPatientId}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.authApp.accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(analysisData)
+            });
+
+            if (response.ok) {
+                const analysis = await response.json();
+                this.pendingAnalysisId = analysis.id;
+
+                // Закрываем модальное окно
+                this.closeAnalysisModal();
+
+                // Показываем сообщение
+                this.authApp.showToast('Успешно', 'Анализ начат. Ожидайте результатов...', 'success');
+
+                // Запускаем проверку статуса
+                this.startStatusCheck(analysis.id);
+
+            } else {
+                const error = await response.json();
+                this.authApp.showToast('Ошибка', error.detail || 'Не удалось начать анализ', 'error');
+                this.authApp.setLoadingState(startBtn, false);
+            }
+        } catch (error) {
+            this.authApp.showToast('Ошибка сети', 'Проверьте подключение к серверу', 'error');
+            this.authApp.setLoadingState(startBtn, false);
+        }
+    }
+
+    startStatusCheck(analysisId) {
+        this.stopStatusCheck();
+
+        // Первая проверка через 3 секунды
+        setTimeout(() => {
+            this.checkAnalysisStatus(analysisId);
+        }, 3000);
+
+        // Дальнейшие проверки каждые 5 секунд
+        this.statusCheckInterval = setInterval(() => {
+            this.checkAnalysisStatus(analysisId);
+        }, 5000);
+    }
+
+    stopStatusCheck() {
+        if (this.statusCheckInterval) {
+            clearInterval(this.statusCheckInterval);
+            this.statusCheckInterval = null;
+        }
+    }
+
+    async checkAnalysisStatus(analysisId) {
+        try {
+            const response = await fetch(`${this.baseURL}/respiratory-analysis/${analysisId}/status`, {
+                headers: {
+                    'Authorization': `Bearer ${this.authApp.accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const statusData = await response.json();
+
+                if (statusData.progress_percent >= 100) {
+                    // Анализ завершен
+                    this.stopStatusCheck();
+                    this.onAnalysisComplete(analysisId);
+                }
+            }
+        } catch (error) {
+            // Игнорируем ошибки проверки статуса
+        }
+    }
+
+    async onAnalysisComplete(analysisId) {
+        try {
+            const response = await fetch(`${this.baseURL}/respiratory-analysis/${analysisId}`, {
+                headers: {
+                    'Authorization': `Bearer ${this.authApp.accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const analysis = await response.json();
+
+                // Уведомление об успешном завершении
+                this.authApp.showToast('Анализ завершен', 'Результаты готовы к просмотру', 'success');
+
+                // Обновляем список анализов
+                await this.loadAnalyses();
+
+            } else {
+                this.authApp.showToast('Ошибка', 'Не удалось загрузить результаты', 'error');
+            }
+        } catch (error) {
+            this.authApp.showToast('Ошибка сети', 'Проверьте подключение к серверу', 'error');
+        }
+    }
+
+    async loadAnalyses() {
+        if (!this.currentPatientId) return;
+
+        try {
+            const response = await fetch(`${this.baseURL}/respiratory-analysis/patient/${this.currentPatientId}/analyses`, {
+                headers: {
+                    'Authorization': `Bearer ${this.authApp.accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const analysesData = await response.json();
+                this.analyses = analysesData;
+                this.filteredAnalyses = [...this.analyses]; // Копируем для фильтрации
+
+                await this.enrichAnalysesWithVideoTitles();
+                this.filterAnalyses(); // Применяем фильтрацию если есть поисковый запрос
+            } else if (response.status === 401) {
+                this.authApp.showToast('Ошибка', 'Требуется авторизация', 'error');
+                this.authApp.logout();
+            }
+        } catch (error) {
+            // Игнорируем ошибки загрузки
+        }
+    }
+
+    filterAnalyses() {
+        if (!this.searchTerm) {
+            this.filteredAnalyses = [...this.analyses];
+        } else {
+            const searchTermLower = this.searchTerm.toLowerCase();
+            this.filteredAnalyses = this.analyses.filter(analysis => {
+                // Поиск по названию видео
+                const videoTitle = analysis.video_title || `Видео #${analysis.video_id}`;
+                if (videoTitle.toLowerCase().includes(searchTermLower)) {
+                    return true;
+                }
+
+                // Поиск по дате
+                const date = new Date(analysis.created_at);
+                const dateString = date.toLocaleDateString('ru-RU');
+                if (dateString.includes(searchTermLower)) {
+                    return true;
+                }
+
+                // Поиск по статусу
+                const statusText = this.getStatusText(analysis.status).toLowerCase();
+                if (statusText.includes(searchTermLower)) {
+                    return true;
+                }
+
+                // Поиск по ID анализа
+                if (analysis.id.toString().includes(searchTermLower)) {
+                    return true;
+                }
+
+                // Поиск по ID видео
+                if (analysis.video_id.toString().includes(searchTermLower)) {
+                    return true;
+                }
+
+                return false;
+            });
+        }
+
+        this.renderAnalyses();
+    }
+
+    async enrichAnalysesWithVideoTitles() {
+        for (const analysis of this.analyses) {
+            if (analysis.video_id && !analysis.video_title) {
+                try {
+                    const videoTitle = await this.getVideoTitle(analysis.video_id);
+                    analysis.video_title = videoTitle || `Видео #${analysis.video_id}`;
+                } catch (error) {
+                    analysis.video_title = `Видео #${analysis.video_id}`;
+                }
+            }
+        }
+    }
+
+    async getVideoTitle(videoId) {
+        if (!this.currentPatientId || !videoId) return null;
+
+        try {
+            const response = await fetch(`${this.baseURL}/patients/${this.currentPatientId}/videos/${videoId}`, {
+                headers: {
+                    'Authorization': `Bearer ${this.authApp.accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const videoData = await response.json();
+                return videoData.title || videoData.filename || `Видео #${videoId}`;
+            }
+            return `Видео #${videoId}`;
+        } catch (error) {
+            return `Видео #${videoId}`;
+        }
+    }
+
+    renderAnalyses() {
+        const container = document.getElementById('analysesContainer');
+        if (!container) return;
+
+        const analysesToRender = this.searchTerm ? this.filteredAnalyses : this.analyses;
+
+        if (analysesToRender.length === 0) {
+            if (this.searchTerm) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-search"></i>
+                        <h3>Анализы не найдены</h3>
+                        <p>По запросу "${this.searchTerm}" ничего не найдено</p>
+                        <button class="btn btn-secondary" id="clearAnalysisSearch">
+                            <i class="fas fa-times"></i>
+                            Очистить поиск
+                        </button>
+                    </div>
+                `;
+
+                // Добавляем обработчик для кнопки очистки поиска
+                const clearBtn = document.getElementById('clearAnalysisSearch');
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', () => {
+                        document.getElementById('analysisSearch').value = '';
+                        this.searchTerm = '';
+                        this.filterAnalyses();
+                    });
+                }
+            } else {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-chart-bar"></i>
+                        <h3>Анализы не найдены</h3>
+                        <p>Запустите первый анализ для видео пациента</p>
+                    </div>
+                `;
+            }
+            return;
+        }
+
+        container.innerHTML = analysesToRender.map(analysis => {
+            const videoTitle = analysis.video_title || `Видео #${analysis.video_id}`;
+            const analysisTitle = `Анализ - "${videoTitle}"`;
+
+            // Подсветка результатов поиска
+            let highlightedTitle = analysisTitle;
+            if (this.searchTerm) {
+                highlightedTitle = this.highlightSearchTerm(analysisTitle, this.searchTerm);
+            }
+
+            return `
+                <div class="analysis-card" data-analysis-id="${analysis.id}">
+                    <div class="analysis-info">
+                        <div class="analysis-header">
+                            <h4>${highlightedTitle}</h4>
+                            <span class="analysis-status ${analysis.status}">
+                                ${this.getStatusText(analysis.status)}
+                            </span>
+                        </div>
+                        <div class="analysis-meta">
+                            <span><i class="fas fa-calendar"></i> ${new Date(analysis.created_at).toLocaleDateString()}</span>
+                            <span><i class="fas fa-hashtag"></i> ID: ${analysis.id}</span>
+                            <span><i class="fas fa-video"></i> Видео ID: ${analysis.video_id}</span>
+                        </div>
+                    </div>
+                    <div class="analysis-actions">
+                        ${analysis.status === 'completed' ? `
+                            <button class="btn-action btn-analysis-view" data-analysis-id="${analysis.id}" title="Просмотр">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        ` : ''}
+                        <button class="btn-action btn-analysis-delete" data-analysis-id="${analysis.id}" title="Удалить">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    highlightSearchTerm(text, searchTerm) {
+        if (!searchTerm) return text;
+
+        const regex = new RegExp(`(${this.escapeRegex(searchTerm)})`, 'gi');
+        return text.replace(regex, '<span class="search-highlight">$1</span>');
+    }
+
+    escapeRegex(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    getStatusText(status) {
+        switch(status) {
+            case 'processing': return 'Обработка';
+            case 'completed': return 'Завершено';
+            case 'failed': return 'Ошибка';
+            default: return status;
+        }
+    }
+
+    async viewAnalysis(analysisId) {
+        try {
+            const response = await fetch(`${this.baseURL}/respiratory-analysis/${analysisId}`, {
+                headers: {
+                    'Authorization': `Bearer ${this.authApp.accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const analysis = await response.json();
+                this.currentAnalysisId = analysis.id;
+
+                const videoTitle = await this.getVideoTitle(analysis.video_id);
+                this.showAnalysisModalWithPlots(analysis, videoTitle);
+            } else {
+                this.authApp.showToast('Ошибка', 'Не удалось загрузить анализ', 'error');
+            }
+        } catch (error) {
+            this.authApp.showToast('Ошибка', 'Не удалось загрузить анализ', 'error');
+        }
+    }
+
+    showAnalysisModalWithPlots(analysis, videoTitle) {
+        const modal = document.getElementById('analysisResultsModal');
+        if (!modal) {
+            this.authApp.showToast('Ошибка', 'Модальное окно не найдено', 'error');
+            return;
+        }
+
+        try {
+            const displayTitle = videoTitle || `Видео #${analysis.video_id}`;
+            document.getElementById('analysisResultsTitle').textContent = `Анализ - "${displayTitle}"`;
+
+            this.fillAnalysisResultModal(analysis, videoTitle);
+
+            this.insertPlotImages(analysis);
+
+            modal.classList.add('active');
+
+            this.scrollModalToTop('analysisResultsModal');
+        } catch (error) {
+            this.authApp.showToast('Ошибка', 'Не удалось отобразить результаты', 'error');
+        }
+    }
+
+    scrollModalToTop(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            const modalBody = modal.querySelector('.modal-body');
+            if (modalBody) {
+                setTimeout(() => {
+                    modalBody.scrollTop = 0;
+                }, 50);
+            }
+        }
+    }
+
+    fillAnalysisResultModal(analysis, videoTitle) {
+        try {
+            console.log('Заполнение деталей анализа:', analysis);
+
+            // 1. Дата анализа
+            const analysisDateResultEl = document.getElementById('analysisDateResult');
+            if (analysisDateResultEl && analysis.created_at) {
+                const date = new Date(analysis.created_at);
+                const formattedDate = date.toLocaleDateString('ru-RU', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                });
+                const formattedTime = date.toLocaleTimeString('ru-RU', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                analysisDateResultEl.textContent = `${formattedDate} ${formattedTime}`;
+            }
+
+            // 2. Статус анализа
+            const analysisStatusResultEl = document.getElementById('analysisStatusResult');
+            if (analysisStatusResultEl) {
+                const statusText = analysis.status === 'completed' ? 'Завершен' :
+                                 analysis.status === 'processing' ? 'В процессе' :
+                                 analysis.status === 'failed' ? 'Ошибка' : 'Неизвестно';
+                analysisStatusResultEl.textContent = statusText;
+            }
+
+            // 3. Цвет маркера
+            const markerColorResultEl = document.getElementById('markerColorResult');
+            if (markerColorResultEl && analysis.marker_color) {
+                markerColorResultEl.textContent = this.formatMarkerColor(analysis.marker_color);
+            }
+
+            // 4. Размер маркера
+            const markerSizeResultEl = document.getElementById('markerSizeResult');
+            if (markerSizeResultEl && analysis.marker_size_mm) {
+                markerSizeResultEl.textContent = `${analysis.marker_size_mm} мм`;
+            }
+
+            // 5. Время обработки
+            const processingTimeResultEl = document.getElementById('processingTimeResult');
+            if (processingTimeResultEl && analysis.processing_time_seconds) {
+                processingTimeResultEl.textContent = `${analysis.processing_time_seconds.toFixed(1)} сек`;
+            }
+
+            // 6. Количество кадров
+            const analysisFramesResultEl = document.getElementById('analysisFramesResult');
+            if (analysisFramesResultEl && analysis.total_frames) {
+                analysisFramesResultEl.textContent = `${analysis.total_frames} кадров`;
+            }
+
+            // 7. Основные метрики дыхания
+            const breathingRate = analysis.breathing_rate_mean_bpm ?
+                `${analysis.breathing_rate_mean_bpm.toFixed(1)} вд/мин` : '—';
+
+            const amplitude = analysis.amplitude_mean_mm ?
+                `${analysis.amplitude_mean_mm.toFixed(1)} мм` : '—';
+
+            const synchronization = analysis.synchronization_index ?
+                `${(analysis.synchronization_index * 100).toFixed(1)}%` : '—';
+
+            const breathingRateEl = document.getElementById('breathingRateResultDetailed');
+            const amplitudeEl = document.getElementById('amplitudeResultDetailed');
+            const synchronizationEl = document.getElementById('synchronizationResultDetailed');
+
+            if (breathingRateEl) breathingRateEl.textContent = breathingRate;
+            if (amplitudeEl) amplitudeEl.textContent = amplitude;
+            if (synchronizationEl) synchronizationEl.textContent = synchronization;
+
+            // 8. Медицинская оценка
+            const medicalAssessmentContent = document.getElementById('medicalAssessmentContent');
+            if (medicalAssessmentContent) {
+                if (analysis.medical_assessment && analysis.medical_assessment !== "Оценка загружается...") {
+                    medicalAssessmentContent.innerHTML = `<p>${analysis.medical_assessment.replace(/\n/g, '<br>')}</p>`;
+                } else if (analysis.text_report) {
+                    // Извлекаем общую информацию из текстового отчета
+                    const reportLines = analysis.text_report.split('\n');
+                    let assessmentText = '';
+
+                    // Ищем раздел "ОБЩАЯ ИНФОРМАЦИЯ"
+                    let foundGeneralInfo = false;
+                    for (let i = 0; i < reportLines.length; i++) {
+                        const line = reportLines[i].trim();
+                        if (line.includes('ОБЩАЯ ИНФОРМАЦИЯ')) {
+                            foundGeneralInfo = true;
+                            continue;
+                        }
+                        if (foundGeneralInfo) {
+                            if (line.includes('ЛИНИЯ 1:') || line.includes('==================================================')) {
+                                break;
+                            }
+                            if (line && line !== '') {
+                                assessmentText += line + '<br>';
+                            }
+                        }
+                    }
+
+                    if (assessmentText) {
+                        medicalAssessmentContent.innerHTML = `<p>${assessmentText}</p>`;
+                    } else if (analysis.breathing_rate_mean_bpm) {
+                        // Формируем простую оценку на основе данных
+                        const bpm = analysis.breathing_rate_mean_bpm;
+                        let assessment = '';
+
+                        if (bpm < 12) {
+                            assessment = 'Брадипноэ: частота дыхания ниже нормы';
+                        } else if (bpm > 20) {
+                            assessment = 'Тахипноэ: частота дыхания выше нормы';
+                        } else {
+                            assessment = 'Нормальная частота дыхания';
+                        }
+
+                        medicalAssessmentContent.innerHTML = `<p>${assessment}. Частота дыхания: ${bpm.toFixed(1)}</p>`;
+                    } else {
+                        medicalAssessmentContent.innerHTML = '<p>Медицинская оценка не доступна</p>';
+                    }
+                } else {
+                    medicalAssessmentContent.innerHTML = '<p>Медицинская оценка не доступна</p>';
+                }
+            }
+
+            console.log('Детали анализа заполнены успешно');
+
+        } catch (error) {
+            console.error('Ошибка при заполнении результатов:', error);
+        }
+    }
+
+    formatMarkerColor(color) {
+        const colorMap = {
+            'red': 'Красный',
+            'green': 'Зеленый',
+            'blue': 'Синий',
+            '#FF0000': 'Красный',
+            '#00FF00': 'Зеленый',
+            '#0000FF': 'Синий'
+        };
+        return colorMap[color] || color;
+    }
+
+    insertPlotImages(analysis) {
+        const plotsGrid = document.getElementById('analysisPlotsGrid');
+        if (!plotsGrid) return;
+
+        plotsGrid.innerHTML = '';
+
+        const plotData = [
+            {
+                path: analysis.width_line_1_plot,
+                title: 'Изменение ширины маркера (линия 1)',
+                description: 'Изменение ширины маркера по линии 1 в зависимости от времени',
+                type: 'width_line_1'
+            },
+            {
+                path: analysis.width_line_2_plot,
+                title: 'Изменение ширины маркера (линия 2)',
+                description: 'Изменение ширины маркера по линии 2 в зависимости от времени',
+                type: 'width_line_2'
+            },
+            {
+                path: analysis.width_line_3_plot,
+                title: 'Изменение ширины маркера (линия 3)',
+                description: 'Изменение ширины маркера по линии 3 в зависимости от времени',
+                type: 'width_line_3'
+            },
+            {
+                path: analysis.summary_plot,
+                title: 'Сводный график анализа',
+                description: 'Сводная информация по всем линиям анализа',
+                type: 'summary_plot'
+            }
+        ];
+
+        const availablePlots = plotData.filter(plot => plot.path && plot.path.trim() !== '');
+
+        if (availablePlots.length === 0) {
+            plotsGrid.innerHTML = `
+                <div class="plot-placeholder-large">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h4>Графики не найдены в базе данных</h4>
+                    <p>Проверьте пути к графикам в БД</p>
+                </div>
+            `;
+            return;
+        }
+
+        let plotsHTML = '';
+
+        availablePlots.forEach((plot) => {
+            const relativePath = this.buildRelativePlotPath(analysis.patient_id, analysis.id, plot.path);
+
+            // Создаем уникальный ID для обработчиков
+            const containerId = `plot-container-${analysis.id}-${plot.type}`;
+            const imageId = `plot-image-${analysis.id}-${plot.type}`;
+            const loadingId = `plot-loading-${analysis.id}-${plot.type}`;
+
+            plotsHTML += `
+                <div class="plot-card-large" id="${containerId}">
+                    <div class="plot-image-container">
+                        <div class="plot-loading" id="${loadingId}">
+                            <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+                            <p>Загрузка графика...</p>
+                        </div>
+                        <img src="${relativePath}"
+                             alt="${plot.title}"
+                             class="plot-image-large"
+                             id="${imageId}"
+                             style="display: none;"
+                             onload="
+                                document.getElementById('${imageId}').style.display = 'block';
+                                document.getElementById('${loadingId}').style.display = 'none';
+                             "
+                             onerror="
+                                const loadingDiv = document.getElementById('${loadingId}');
+                                if (loadingDiv) {
+                                    loadingDiv.className = 'plot-error';
+                                }
+                                document.getElementById('${imageId}').style.display = 'none';
+                             ">
+                    </div>
+                    <div class="plot-info-large">
+                        <h4 class="plot-title-large">${plot.title}</h4>
+                        <p class="plot-description-large">${plot.description}</p>
+                    </div>
+                </div>
+            `;
+        });
+
+        plotsGrid.innerHTML = plotsHTML;
+    }
+
+    buildRelativePlotPath(patientId, analysisId, fullPath) {
+        if (!fullPath) return '';
+
+        const filename = this.extractFilename(fullPath);
+        if (!filename) return '';
+
+        return `analysis_plots/${patientId}/${analysisId}/${filename}`;
+    }
+
+    extractFilename(fullPath) {
+        if (!fullPath) return '';
+
+        const parts = fullPath.split(/[\\/]/);
+        return parts[parts.length - 1];
+    }
+
+    closeAnalysisResultModal() {
+        const modal = document.getElementById('analysisResultsModal');
+        if (modal) {
+            modal.classList.remove('active');
+
+            const plotsGrid = document.getElementById('analysisPlotsGrid');
+            if (plotsGrid) {
+                plotsGrid.innerHTML = '';
+            }
+
+            this.currentAnalysisId = null;
+        }
+    }
+
+    // ОСНОВНОЙ МЕТОД: Генерация и скачивание PDF отчета
+    async generateAndDownloadPDFReport() {
+        if (!this.currentAnalysisId || !this.currentPatientId) {
+            this.authApp.showToast('Ошибка', 'Анализ не выбран', 'error');
+            return;
+        }
+
+        const downloadBtn = document.getElementById('downloadAnalysisResultBtn');
+        const originalContent = downloadBtn.innerHTML;
+        downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Генерация PDF...';
+        downloadBtn.disabled = true;
+
+        try {
+            // Получаем данные анализа
+            const analysisResponse = await fetch(`${this.baseURL}/respiratory-analysis/${this.currentAnalysisId}`, {
+                headers: {
+                    'Authorization': `Bearer ${this.authApp.accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!analysisResponse.ok) {
+                throw new Error('Не удалось получить данные анализа');
+            }
+
+            const analysis = await analysisResponse.json();
+
+            // Получаем данные пациента
+            let patient = this.patientManager.currentPatient;
+            if (!patient) {
+                const patientResponse = await fetch(`${this.baseURL}/patients/${this.currentPatientId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${this.authApp.accessToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!patientResponse.ok) {
+                    throw new Error('Не удалось получить данные пациента');
+                }
+                patient = await patientResponse.json();
+            }
+
+            // Собираем графики
+            const plots = await this.collectAllAnalysisPlots(analysis);
+
+            // Генерируем PDF
+            const pdfGenerator = new PDFReportGenerator();
+            await pdfGenerator.generateAnalysisReport(patient, analysis, plots);
+
+            this.authApp.showToast('Успешно', 'PDF отчет создан', 'success');
+
+        } catch (error) {
+            console.error('Ошибка при генерации PDF:', error);
+            this.authApp.showToast('Ошибка', 'Не удалось создать PDF отчет', 'error');
+        } finally {
+            downloadBtn.innerHTML = originalContent;
+            downloadBtn.disabled = false;
+        }
+    }
+
+    async collectAllAnalysisPlots(analysis) {
+        const plots = [];
+        const plotData = [
+            {
+                url: this.buildRelativePlotPath(analysis.patient_id, analysis.id, analysis.width_line_1_plot),
+                title: 'Изменение ширины маркера (линия 1)',
+                description: 'Изменение ширины маркера по линии 1 в зависимости от времени'
+            },
+            {
+                url: this.buildRelativePlotPath(analysis.patient_id, analysis.id, analysis.width_line_2_plot),
+                title: 'Изменение ширины маркера (линия 2)',
+                description: 'Изменение ширины маркера по линии 2 в зависимости от времени'
+            },
+            {
+                url: this.buildRelativePlotPath(analysis.patient_id, analysis.id, analysis.width_line_3_plot),
+                title: 'Изменение ширины маркера (линия 3)',
+                description: 'Изменение ширины маркера по линии 3 в зависимости от времени'
+            },
+            {
+                url: this.buildRelativePlotPath(analysis.patient_id, analysis.id, analysis.summary_plot),
+                title: 'Сводный график анализа',
+                description: 'Сводная информация по всем линиям анализа'
+            }
+        ];
+
+        // Проверяем доступность каждого графика
+        for (const plot of plotData) {
+            if (plot.url) {
+                try {
+                    // Проверяем, доступен ли график
+                    const response = await fetch(plot.url, { method: 'HEAD' });
+                    if (response.ok) {
+                        plots.push(plot);
+                    }
+                } catch (error) {
+                    console.warn(`График недоступен: ${plot.title}`);
+                }
+            }
+        }
+
+        return plots;
+    }
+
+    // Старая функция для скачивания отдельных графиков
+    async downloadAnalysisPlots() {
+        if (!this.currentAnalysisId || !this.currentPatientId) {
+            this.authApp.showToast('Ошибка', 'Анализ не выбран', 'error');
+            return;
+        }
+
+        const analysis = this.analyses.find(a => a.id === this.currentAnalysisId);
+        if (!analysis) {
+            this.authApp.showToast('Ошибка', 'Анализ не найден', 'error');
+            return;
+        }
+
+        const plots = [
+            { name: 'width_line_1', path: analysis.width_line_1_plot },
+            { name: 'width_line_2', path: analysis.width_line_2_plot },
+            { name: 'width_line_3', path: analysis.width_line_3_plot },
+            { name: 'summary_plot', path: analysis.summary_plot }
+        ];
+
+        let downloaded = 0;
+        let errors = 0;
+
+        for (const plot of plots) {
+            if (!plot.path) continue;
+
+            try {
+                const filename = this.extractFilename(plot.path);
+                const url = this.buildRelativePlotPath(this.currentPatientId, this.currentAnalysisId, plot.path);
+
+                const response = await fetch(url);
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const downloadUrl = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = downloadUrl;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(downloadUrl);
+
+                    downloaded++;
+                } else {
+                    errors++;
+                }
+            } catch (error) {
+                errors++;
+            }
+        }
+
+        if (downloaded > 0) {
+            this.authApp.showToast('Успешно', `Скачано ${downloaded} график(ов)`, 'success');
+        }
+        if (errors > 0) {
+            this.authApp.showToast('Ошибка', `Не удалось скачать ${errors} график(ов)`, 'error');
+        }
+    }
+
+    // Старая функция для скачивания текстового отчета
+    async downloadAnalysisReport() {
+        if (!this.currentAnalysisId) {
+            this.authApp.showToast('Ошибка', 'Анализ не выбран', 'error');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${this.baseURL}/respiratory-analysis/${this.currentAnalysisId}/report`, {
+                headers: {
+                    'Authorization': `Bearer ${this.authApp.accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const report = await response.json();
+                this.downloadTextFile(report.report, `analysis_report_${this.currentAnalysisId}.txt`);
+            } else {
+                const error = await response.json();
+                this.authApp.showToast('Ошибка', error.detail || 'Не удалось скачать отчет', 'error');
+            }
+        } catch (error) {
+            this.authApp.showToast('Ошибка сети', 'Проверьте подключение к серверу', 'error');
+        }
+    }
+
+    downloadTextFile(content, filename) {
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        this.authApp.showToast('Успешно', 'Отчет скачивается', 'success');
+    }
+
+    deleteAnalysis(analysisId) {
+        const analysis = this.analyses.find(a => a.id === parseInt(analysisId));
+        if (!analysis) return;
+
+        this.pendingDeleteAnalysisId = analysisId;
+        const deleteAnalysisIdEl = document.getElementById('deleteAnalysisId');
+        const deleteAnalysisDateEl = document.getElementById('deleteAnalysisDate');
+
+        if (deleteAnalysisIdEl) deleteAnalysisIdEl.textContent = `#${analysis.id}`;
+        if (deleteAnalysisDateEl) deleteAnalysisDateEl.textContent = new Date(analysis.created_at).toLocaleDateString();
+
+        document.getElementById('confirmDeleteAnalysisModal').classList.add('active');
+    }
+
+    closeConfirmDeleteAnalysisModal() {
+        document.getElementById('confirmDeleteAnalysisModal').classList.remove('active');
+        this.pendingDeleteAnalysisId = null;
+    }
+
+    async executeAnalysisDelete() {
+        if (!this.pendingDeleteAnalysisId) return;
+
+        const analysisId = this.pendingDeleteAnalysisId;
+        this.closeConfirmDeleteAnalysisModal();
+
+        try {
+            const response = await fetch(`${this.baseURL}/respiratory-analysis/${analysisId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${this.authApp.accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                this.authApp.showToast('Успешно', 'Анализ удален', 'success');
+                this.loadAnalyses();
+            } else {
+                const error = await response.json();
+                this.authApp.showToast('Ошибка', error.detail || 'Не удалось удалить анализ', 'error');
+            }
+        } catch (error) {
+            this.authApp.showToast('Ошибка сети', 'Проверьте подключение', 'error');
+        } finally {
+            this.pendingDeleteAnalysisId = null;
+        }
+    }
+
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+}
+
 
 class AuthApp {
     constructor() {
@@ -2501,7 +4234,7 @@ class AuthApp {
             });
         }, { threshold: 0.1 });
 
-        document.querySelectorAll('.auth-card, .profile-card, .patient-card, .video-card, .stat-card').forEach(card => {
+        document.querySelectorAll('.auth-card, .profile-card, .patient-card, .video-card, .stat-card, .analysis-card').forEach(card => {
             card.style.opacity = '0';
             card.style.transform = 'translateY(20px)';
             card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
@@ -2512,5 +4245,16 @@ class AuthApp {
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
-    new AuthApp();
+    const authApp = new AuthApp();
+
+    // Глобальный доступ для отладки
+    window.authApp = authApp;
+
 });
+
+// Глобальные функции для обработки ошибок картинок
+window.handleModalPlotError = function(imgElement) {
+    imgElement.onerror = null;
+    imgElement.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDQwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNGMEYwRjAiLz48dGV4dCB4PSIyMDAiIHk9IjEwMCIgZm9udC1mYW1pbHk9IkludGVyIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjQ3NDhCIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+R3JhcGggbm90IGF2YWlsYWJsZTwvdGV4dD48L3N2Zz4=';
+    imgElement.classList.remove('loading');
+};

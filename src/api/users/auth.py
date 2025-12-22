@@ -1,10 +1,10 @@
 import os
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from infrastructure.async_db import get_db
 from sqlalchemy.future import select
 from jose import jwt, JWTError
 from passlib.context import CryptContext
-from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
@@ -20,10 +20,15 @@ REFRESH_SECRET_KEY = os.environ.get("REFRESH_SECRET_KEY", SECRET_KEY + "_refresh
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY environment variable is not set")
 
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 120
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
-OAUTH2_SCHEME = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
+# Измените строку - добавьте схему авторизации
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="auth/login",
+    scheme_name="Bearer",
+    auto_error=False
+)
 
 router = APIRouter(
     prefix="/auth",
@@ -76,7 +81,7 @@ async def authenticate_user(db: AsyncSession, email: str, password: str):
 
 
 async def get_current_user(
-        token: str = Depends(OAUTH2_SCHEME),
+        token: str = Depends(oauth2_scheme),
         db: AsyncSession = Depends(get_db)
 ):
     if token is None:
@@ -130,7 +135,7 @@ async def register(user_data: schemas.UserCreate, db: AsyncSession = Depends(get
         name=user_data.name,
         surname=user_data.surname,
         hashed_password=hashed_password,
-        is_doctor=True  # Все регистрирующиеся пользователи - врачи
+        is_doctor=True
     )
 
     db.add(db_user)
@@ -226,4 +231,3 @@ async def update_current_user_profile(
     await db.commit()
     await db.refresh(current_user)
     return current_user
-

@@ -3608,3 +3608,1007 @@ body.modal-open {
 .input-group input:disabled::placeholder {
     color: var(--text-tertiary);
 }
+
+/* ... (весь предыдущий CSS остается) ... */
+
+/* Дополнения для анализа */
+
+/* Analysis Cards */
+.analysis-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    transition: var(--transition);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    animation: slideUp 0.6s ease-out;
+}
+
+.analysis-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary);
+}
+
+.analysis-info {
+    flex: 1;
+}
+
+.analysis-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.analysis-header h4 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.analysis-status {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.analysis-status.processing {
+    background: var(--warning);
+    color: white;
+}
+
+.analysis-status.completed {
+    background: var(--success);
+    color: white;
+}
+
+.analysis-status.failed {
+    background: var(--error);
+    color: white;
+}
+
+.analysis-meta {
+    display: flex;
+    gap: 1.5rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.analysis-meta span {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.analysis-results-preview {
+    background: var(--surface-light);
+    border-radius: var(--radius);
+    padding: 1rem;
+}
+
+.result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.result-item:last-child {
+    margin-bottom: 0;
+}
+
+.result-label {
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.result-value {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.result-value.error {
+    color: var(--error);
+}
+
+.analysis-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-left: 1rem;
+}
+
+.analyses-container {
+    min-height: 400px;
+}
+
+/* Analysis Modal Specific Styles */
+.analysis-progress-card {
+    background: var(--surface-light);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.progress-header {
+    margin-bottom: 1.5rem;
+}
+
+.progress-icon {
+    font-size: 2.5rem;
+    color: var(--primary);
+    margin-bottom: 1rem;
+}
+
+.progress-header h3 {
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    font-size: 1.3rem;
+}
+
+.progress-header p {
+    color: var(--text-secondary);
+}
+
+.progress-bar-container {
+    margin-bottom: 1.5rem;
+}
+
+.progress-bar {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--primary);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.progress-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.detail-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.detail-item i {
+    color: var(--primary);
+    width: 20px;
+}
+
+.loading-animation {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.breathing-animation {
+    position: relative;
+    width: 200px;
+    height: 120px;
+    margin-bottom: 1.5rem;
+}
+
+.lungs {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.lung {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    background: var(--primary-light);
+    border-radius: 50%;
+    opacity: 0.7;
+    animation: breathe 3s ease-in-out infinite;
+}
+
+.lung.left {
+    left: 20px;
+    top: 20px;
+    animation-delay: 0s;
+}
+
+.lung.right {
+    right: 20px;
+    top: 20px;
+    animation-delay: 1.5s;
+}
+
+@keyframes breathe {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 0.7;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 1;
+    }
+}
+
+.breathing-animation p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-top: 1rem;
+}
+
+/* Analysis Results */
+.results-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.results-header h3 {
+    color: var(--text-primary);
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.results-header .success {
+    color: var(--success);
+}
+
+.results-header p {
+    color: var(--text-secondary);
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.metric-card {
+    background: var(--surface-light);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    text-align: center;
+    transition: var(--transition);
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary);
+}
+
+.metric-icon {
+    width: 50px;
+    height: 50px;
+    margin: 0 auto 1rem;
+    background: var(--primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.metric-value {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.metric-label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.analysis-details {
+    background: var(--surface-light);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.analysis-details h4 {
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.details-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.analysis-detail-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--surface);
+    border-radius: var(--radius);
+}
+
+.detail-label {
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.detail-value {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.medical-assessment {
+    background: var(--surface-light);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    border-left: 4px solid var(--primary);
+}
+
+.medical-assessment h4 {
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.assessment-content {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    font-size: 0.95rem;
+}
+
+/* Error Card */
+.error-card {
+    text-align: center;
+    padding: 3rem 2rem;
+}
+
+.error-icon {
+    font-size: 3rem;
+    color: var(--error);
+    margin-bottom: 1.5rem;
+}
+
+.error-card h3 {
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    font-size: 1.3rem;
+}
+
+.error-card p {
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+}
+
+/* Color Preview */
+.color-preview {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 2px solid var(--border);
+    display: inline-block;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+}
+
+.color-input-wrapper .custom-select__selected {
+    display: flex;
+    align-items: center;
+}
+
+/* Video Info Card in Analysis Modal */
+.video-info-card {
+    background: var(--surface-light);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border: 1px solid var(--border);
+}
+
+.video-info-card .info-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.video-info-card .info-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--primary);
+    color: white;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.video-info-card .info-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.video-info-card .info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.video-info-card .info-item label {
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.video-info-card .info-value {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+/* Form Hint */
+.form-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--surface-light);
+    border-radius: var(--radius);
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.form-hint i {
+    color: var(--primary);
+    margin-top: 0.125rem;
+}
+
+/* Patient Analyses Section Stats */
+#patientAnalysesSection .stat-icon.total {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+#patientAnalysesSection .stat-icon.recent {
+    background: linear-gradient(135deg, #10b981, #34d399);
+}
+
+#patientAnalysesSection .stat-icon.videos {
+    background: linear-gradient(135deg, #f59e0b, #fbbf24);
+}
+
+/* Responsive adjustments for analysis */
+@media (max-width: 768px) {
+    .analysis-card {
+        flex-direction: column;
+    }
+
+    .analysis-actions {
+        margin-left: 0;
+        margin-top: 1rem;
+        justify-content: flex-end;
+    }
+
+    .analysis-meta {
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .metrics-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .breathing-animation {
+        width: 150px;
+        height: 90px;
+    }
+
+    .lung {
+        width: 60px;
+        height: 60px;
+    }
+
+    .video-info-card .info-content {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .analysis-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .analysis-status {
+        align-self: flex-start;
+    }
+
+    .progress-details {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+/* Animation for analysis progress */
+@keyframes pulse {
+    0% { opacity: 0.7; }
+    50% { opacity: 1; }
+    100% { opacity: 0.7; }
+}
+
+.analysis-status.processing {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Additional styles for better spacing */
+#analysisModal .modal-body {
+    padding: 2rem;
+}
+
+#analysisModal .form-row {
+    margin-bottom: 1.5rem;
+}
+
+#analysisModal .input-group {
+    margin-bottom: 1.25rem;
+}
+
+/* Analysis result modal improvements */
+#analysisResultModal .modal-body {
+    padding: 2rem;
+}
+
+#analysisResultModal .metrics-grid {
+    margin-bottom: 2rem;
+}
+
+#analysisResultModal .analysis-details {
+    margin-bottom: 2rem;
+}
+/* Стили для модального окна результатов анализа */
+.modal-content.extra-large {
+    max-width: 1000px;
+    width: 98%;
+    max-height: 90vh;
+}
+
+.analysis-results-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.analysis-results-header h3 {
+    color: var(--text-primary);
+    font-size: 1.4rem;
+    margin-bottom: 0.5rem;
+}
+
+.analysis-meta-info {
+    display: flex;
+    gap: 1.5rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.analysis-meta-info span {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Основные метрики */
+.results-metrics-container {
+    margin-bottom: 2rem;
+}
+
+.results-metrics-container h4 {
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.metrics-grid-large {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.metric-card-large {
+    background: var(--surface-light);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    text-align: center;
+    transition: var(--transition);
+}
+
+.metric-card-large:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.metric-icon-large {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 1rem;
+    background: var(--primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.metric-content-large {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.metric-label-large {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.metric-value-large {
+    color: var(--text-primary);
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.metric-description-large {
+    color: var(--text-tertiary);
+    font-size: 0.8rem;
+}
+
+/* Графики анализа */
+.analysis-plots-section {
+    margin-bottom: 2rem;
+}
+
+.analysis-plots-section h4 {
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.plots-grid-large {
+    background: var(--surface-light);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    min-height: 300px;
+}
+
+.plots-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+}
+
+.plot-card-large {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: var(--transition);
+}
+
+.plot-card-large:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.plot-image-container {
+    width: 100%;
+    height: 250px;
+    background: var(--background);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.plot-image-large {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.plot-info-large {
+    padding: 1rem;
+}
+
+.plot-title-large {
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.plot-description-large {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.plot-placeholder-large {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-secondary);
+}
+
+.plot-placeholder-large i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.plot-placeholder-large p {
+    font-size: 1rem;
+}
+
+/* Детали анализа */
+.analysis-details-section {
+    margin-bottom: 2rem;
+}
+
+.analysis-details-section h4 {
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    background: var(--surface-light);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+}
+
+.detail-item-large {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--surface);
+    border-radius: var(--radius);
+}
+
+.detail-label-large {
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.detail-value-large {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+/* Медицинская оценка */
+.medical-assessment-section {
+    margin-bottom: 1rem;
+}
+
+.medical-assessment-section h4 {
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.assessment-content {
+    background: var(--surface-light);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.assessment-content p {
+    margin-bottom: 0;
+}
+
+/* Загрузка */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.loading-spinner-large {
+    text-align: center;
+    color: white;
+}
+
+.loading-spinner-large i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.loading-spinner-large p {
+    font-size: 1.1rem;
+}
+
+/* Адаптивность */
+@media (max-width: 1024px) {
+    .plots-container {
+        grid-template-columns: 1fr;
+    }
+
+    .plots-grid-large {
+        min-height: 400px;
+    }
+
+    .plot-image-container {
+        height: 200px;
+    }
+}
+
+@media (max-width: 768px) {
+    .modal-content.extra-large {
+        width: 95%;
+        max-height: 95vh;
+    }
+
+    .metrics-grid-large {
+        grid-template-columns: 1fr;
+    }
+
+    .details-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .analysis-meta-info {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+/* Стили для иконок виджетов анализов */
+.stat-icon.analyses,
+.stat-icon.analysis-count,
+.stat-icon.last-analysis {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+}
+
+/* Стиль для времени последнего анализа */
+#patientLastAnalysis {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+/* Улучшенные стили для карточки пациента */
+.patient-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.patient-details span {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.patient-details span i {
+    color: var(--primary);
+    font-size: 0.8rem;
+}
+
+/* Стили для иконок виджетов анализов */
+.stat-icon.analyses {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+
+.stat-icon.analysis-count {
+    background: linear-gradient(135deg, #0ea5e9, #0284c7);
+}
+
+.stat-icon.last-analysis {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+/* Стили для отображения даты анализа */
+.last-analysis-date {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+}
+
+/* Обновленные стили для виджета статистики */
+.stat-card .stat-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.stat-card .stat-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.stat-card .stat-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
