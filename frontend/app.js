@@ -2124,13 +2124,6 @@ class PatientVideoManager {
         this.closeConfirmDeleteVideoModal();
 
         try {
-            const response = await fetch(`${this.baseURL}/patients/${this.currentPatientId}/videos/${videoId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${this.authApp.accessToken}`,
-                    'Content-Type': 'application/json'
-                }
-            });
 
             if (response.ok) {
                 const result = await response.json();
@@ -2492,12 +2485,6 @@ class PatientVideoManager {
         }
 
         try {
-            const response = await fetch(`${this.baseURL}/patients/${this.currentPatientId}/videos/${videoId}/download`, {
-                headers: {
-                    'Authorization': `Bearer ${this.authApp.accessToken}`
-                }
-            });
-
             if (response.ok) {
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
@@ -3132,12 +3119,6 @@ class RespiratoryAnalysisManager {
         if (!this.currentPatientId || !videoId) return null;
 
         try {
-            const response = await fetch(`${this.baseURL}/patients/${this.currentPatientId}/videos/${videoId}`, {
-                headers: {
-                    'Authorization': `Bearer ${this.authApp.accessToken}`,
-                    'Content-Type': 'application/json'
-                }
-            });
 
             if (response.ok) {
                 const videoData = await response.json();

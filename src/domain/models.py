@@ -53,7 +53,7 @@ class PatientVideo(Base):
     patient_id = Column(Integer, ForeignKey("patients.id"))
     title = Column(String, nullable=True)
     filename = Column(String)
-    s3_path = Column(String)
+    file_path = Column(String)
     file_size = Column(Integer)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -68,42 +68,29 @@ class RespiratoryAnalysis(Base):
     patient_id = Column(Integer, ForeignKey("patients.id"))
     video_id = Column(Integer, ForeignKey("patient_videos.id"))
 
-    # Параметры анализа
     marker_color = Column(String, default="red")  # red, blue, green
     marker_size_mm = Column(Float, default=18.0)
 
-    # Статус и метаданные
     status = Column(String, default="pending")  # pending, processing, completed, failed
     error_message = Column(Text, nullable=True)
     processing_time_seconds = Column(Float, nullable=True)
 
     # Основные результаты
     breathing_rate_mean_bpm = Column(Float, nullable=True)
-    breathing_rate_std_bpm = Column(Float, nullable=True)
     amplitude_mean_mm = Column(Float, nullable=True)
-    amplitude_std_mm = Column(Float, nullable=True)
-    synchronization_index = Column(Float, nullable=True)
-    analysis_duration_seconds = Column(Float, nullable=True)
     total_frames = Column(Integer, nullable=True)
 
-    # Графики (base64)
     width_line_1_plot = Column(Text, nullable=True)
     width_line_2_plot = Column(Text, nullable=True)
     width_line_3_plot = Column(Text, nullable=True)
     summary_plot = Column(Text, nullable=True)
 
-    # Детальные результаты
-    line_results_json = Column(JSON, nullable=True)
-    parameters_json = Column(JSON, nullable=True)
     text_report = Column(Text, nullable=True)
 
-    # Медицинская оценка
     medical_assessment = Column(String, nullable=True)
 
-    # Временные метки
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
-    # Связи
     patient = relationship("Patient", back_populates="respiratory_analyses")
     video = relationship("PatientVideo", back_populates="respiratory_analyses")

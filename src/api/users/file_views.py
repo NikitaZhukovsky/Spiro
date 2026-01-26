@@ -125,7 +125,6 @@ async def upload_patient_video(
     try:
         file_path = await save_video_to_disk(file, str(patient_id), unique_filename)
 
-        # Если title не указан, используем имя файла без расширения
         if not title:
             title = os.path.splitext(file.filename)[0]
 
@@ -133,7 +132,7 @@ async def upload_patient_video(
             patient_id=patient_id,
             title=title,
             filename=file.filename,
-            s3_path=file_path,
+            file_path=file_path,
             file_size=file_size
         )
 
@@ -196,7 +195,7 @@ async def list_patient_videos(
             "title": video.title,
             "filename": video.filename,
             "file_size": video.file_size,
-            "file_exists": os.path.exists(video.s3_path),
+            "file_exists": os.path.exists(video.file_path),
             "created_at": video.created_at.isoformat() if video.created_at else None,
             "patient_id": video.patient_id
         }
@@ -240,7 +239,7 @@ async def get_patient_video_info(
         "title": video.title,
         "filename": video.filename,
         "file_size": video.file_size,
-        "file_exists": os.path.exists(video.s3_path),
+        "file_exists": os.path.exists(video.file_path),
         "created_at": video.created_at.isoformat() if video.created_at else None,
         "patient_id": video.patient_id
     }
@@ -254,7 +253,6 @@ async def download_patient_video(
         current_user: User = Depends(get_current_active_user),
 ):
     """Скачать видео пациента"""
-    # Проверяем существование пациента и принадлежность врачу
     patient = await get_patient_by_id(db, patient_id, current_user.id)
     if not patient:
         raise HTTPException(
@@ -276,7 +274,7 @@ async def download_patient_video(
             detail="Video not found"
         )
 
-    if not os.path.exists(video.s3_path):
+    if not os.path.exists(video.file_path):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Video file not found on server"
@@ -285,7 +283,7 @@ async def download_patient_video(
     media_type = get_video_mime_type(video.filename)
 
     return FileResponse(
-        path=video.s3_path,
+        path=video.file_path,
         filename=video.filename,
         media_type=media_type,
         headers={"Content-Disposition": f"attachment; filename={video.filename}"}
@@ -300,7 +298,6 @@ async def stream_patient_video(
         current_user: User = Depends(get_current_active_user),
 ):
     """Стриминг видео пациента"""
-    # Проверяем существование пациента и принадлежность врачу
     patient = await get_patient_by_id(db, patient_id, current_user.id)
     if not patient:
         raise HTTPException(
@@ -322,7 +319,7 @@ async def stream_patient_video(
             detail="Video not found"
         )
 
-    if not os.path.exists(video.s3_path):
+    if not os.path.exists(video.file_path):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Video file not found on server"
@@ -331,7 +328,7 @@ async def stream_patient_video(
     media_type = get_video_mime_type(video.filename)
 
     return FileResponse(
-        path=video.s3_path,
+        path=video.file_path,
         filename=video.filename,
         media_type=media_type,
         headers={
@@ -372,13 +369,10 @@ async def delete_patient_video(
         )
 
     try:
-        # Сохраняем путь к файлу перед удалением из БД
-        file_path = video.s3_path
+        file_path = video.file_path
 
-        # Удаляем файл с диска
         await delete_video_from_disk(file_path)
 
-        # Удаляем из базы данных
         await db.delete(video)
         await db.commit()
 
@@ -399,7 +393,6 @@ async def get_patient_storage_info(
         current_user: User = Depends(get_current_active_user),
 ):
     """Получить информацию о хранилище видео пациента"""
-    # Проверяем существование пациента и принадлежность врачу
     patient = await get_patient_by_id(db, patient_id, current_user.id)
     if not patient:
         raise HTTPException(
