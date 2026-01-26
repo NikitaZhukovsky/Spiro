@@ -3,21 +3,16 @@ import numpy as np
 from collections import deque
 from typing import List, Optional, Tuple, Dict, Any
 import matplotlib
-
-# Устанавливаем бэкенд ДО импорта pyplot
-matplotlib.use('Agg')  # Неинтерактивный бэкенд
 from scipy import signal
 from scipy.ndimage import uniform_filter1d
-import base64
-import io
 import os
-import tempfile
 import uuid
 from datetime import datetime
-import json
 from sklearn.cluster import KMeans
-import sys
 from pathlib import Path
+
+
+matplotlib.use('Agg')
 
 
 class RespiratoryAnalysisService:
@@ -152,10 +147,7 @@ class RespiratoryAnalysisService:
             analysis_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """Основной метод анализа видео"""
-        # Импортируем matplotlib внутри функции
-        import matplotlib.pyplot as plt
 
-        # Увеличиваем счетчик и выводим информацию
         cls.increment_processed_count()
         cls._log(f"Начата обработка видео: {video_path}")
         cls._log(f"Параметры анализа:")

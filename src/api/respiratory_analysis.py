@@ -27,7 +27,6 @@ from domain.schemas import (
 
 router = APIRouter(prefix="/respiratory-analysis", tags=["Respiratory Analysis"])
 
-# ==================== КОНФИГУРАЦИЯ ПУТЕЙ ====================
 
 PROJECT_ROOT = Path.cwd().parent
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
@@ -65,7 +64,7 @@ def get_static_plots_directory(patient_id: int, analysis_id: int) -> Path:
 
 def get_patient_plots_directory(patient_id: int) -> Path:
     """Получить путь к директории с графиками для пациента"""
-    return FRONTEND_PLOTS_DIR / str(patient_id)
+    return
 
 
 def update_analysis_progress(analysis_id: int, stage: str, progress: float,

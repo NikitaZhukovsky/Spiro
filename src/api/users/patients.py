@@ -161,3 +161,4 @@ async def delete_patient(
     await db.commit()
 
     return {"message": "Patient deleted successfully"}
+

@@ -23,7 +23,6 @@ if not SECRET_KEY:
 ACCESS_TOKEN_EXPIRE_MINUTES = 120
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
-# Измените строку - добавьте схему авторизации
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="auth/login",
     scheme_name="Bearer",
@@ -208,26 +207,3 @@ async def refresh_token(refresh_token: str, db: AsyncSession = Depends(get_db)):
         "token_type": "bearer"
     }
 
-
-@router.get("/me", response_model=schemas.UserProfile)
-async def get_current_user_profile(current_user: models.User = Depends(get_current_active_user)):
-    """Получить профиль текущего пользователя"""
-    return current_user
-
-
-@router.put("/me", response_model=schemas.UserProfile)
-async def update_current_user_profile(
-        user_data: schemas.UserUpdate,
-        db: AsyncSession = Depends(get_db),
-        current_user: models.User = Depends(get_current_active_user)
-):
-    """Обновить профиль текущего пользователя"""
-    update_data = user_data.dict(exclude_unset=True)
-
-    for field, value in update_data.items():
-        setattr(current_user, field, value)
-
-    db.add(current_user)
-    await db.commit()
-    await db.refresh(current_user)
-    return current_user
