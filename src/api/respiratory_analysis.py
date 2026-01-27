@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Body
-from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -25,7 +24,7 @@ from domain.schemas import (
 
 router = APIRouter(prefix="/respiratory-analysis", tags=["Respiratory Analysis"])
 
-# Конфигурация директорий
+
 PROJECT_ROOT = Path.cwd().parent
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 
@@ -61,7 +60,6 @@ def update_analysis_progress(analysis_id: int, stage: str, progress: float,
     }
     _analysis_progress[analysis_id] = progress_data
 
-    # Выводим прогресс в консоль в указанном формате
     if frames_processed is not None and total_frames is not None:
         print(f"Анализ {analysis_id}: {stage} - {progress:.1f}% ({frames_processed}/{total_frames} кадров)")
     else:
@@ -171,7 +169,6 @@ async def analyze_respiratory_movements(
 
     update_analysis_progress(analysis.id, "Инициализация", 0)
 
-    # Создаем директорию для графиков в frontend
     get_plots_directory(patient_id, analysis.id).mkdir(parents=True, exist_ok=True)
 
     background_tasks.add_task(
@@ -193,7 +190,6 @@ def process_respiratory_analysis_sync(
         marker_color: str,
         marker_size_mm: float
 ):
-    """Синхронная фоновая задача для обработки анализа"""
     start_time = datetime.now()
 
     def progress_callback(stage: str, progress: float, frames_processed: int = None, total_frames: int = None):
@@ -220,7 +216,6 @@ def process_respiratory_analysis_sync(
 
 
 def save_analysis_results_sync(analysis_id: int, patient_id: int, results: dict, start_time: datetime):
-    """Сохранить результаты анализа в БД (синхронно)"""
     session = SyncSessionLocal()
 
     try:
@@ -233,24 +228,18 @@ def save_analysis_results_sync(analysis_id: int, patient_id: int, results: dict,
 
         global_results = results.get("results", {}).get("global", {})
 
-        # Сохраняем только те поля, которые есть в модели
         analysis.breathing_rate_mean_bpm = global_results.get("breathing_rate_mean_bpm")
         analysis.amplitude_mean_mm = global_results.get("amplitude_mean_mm")
         analysis.total_frames = results.get("total_frames")
 
-        # Медицинская оценка может быть в разных местах
         analysis.medical_assessment = results.get("medical_assessment") or global_results.get("medical_assessment")
 
-        # Сохраняем графики только в frontend директорию
         save_plots_to_frontend(analysis, patient_id, analysis_id, results)
 
-        # Сохраняем полные результаты анализа (JSON поля)
         save_analysis_data(analysis, results)
 
-        # Текстовый отчет
         analysis.text_report = results.get("text_report")
 
-        # Статус и время завершения
         analysis.status = "completed"
         analysis.completed_at = datetime.now()
         analysis.processing_time_seconds = (datetime.now() - start_time).total_seconds()
@@ -313,7 +302,6 @@ def save_plots_to_frontend(analysis: RespiratoryAnalysis, patient_id: int, analy
         if save_plot(plot_key, plot_name, field_name):
             plots_saved.append(plot_key)
 
-    # Дополнительный поиск файлов в директории сервиса
     if not plots_saved and service_plots_dir and os.path.exists(service_plots_dir):
         for filename in os.listdir(service_plots_dir):
             if not filename.endswith('.png'):
@@ -555,57 +543,6 @@ async def get_patient_analyses(
     return response
 
 
-@router.get("/{analysis_id}/plot/{plot_type}")
-async def get_analysis_plot(
-        analysis_id: int,
-        plot_type: str,
-        db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(get_current_active_user),
-):
-    """Получить график анализа как файл PNG"""
-    analysis = await get_analysis_by_id(db, analysis_id, current_user.id)
-
-    file_path = None
-    field_name = None
-
-    if plot_type == "width_line_1":
-        file_path = analysis.width_line_1_plot
-        field_name = "width_line_1_plot"
-    elif plot_type == "width_line_2":
-        file_path = analysis.width_line_2_plot
-        field_name = "width_line_2_plot"
-    elif plot_type == "width_line_3":
-        file_path = analysis.width_line_3_plot
-        field_name = "width_line_3_plot"
-    elif plot_type == "summary_plot":
-        file_path = analysis.summary_plot
-        field_name = "summary_plot"
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unknown plot type: {plot_type}"
-        )
-
-    # Проверяем существование файла
-    if not file_path or not os.path.exists(file_path):
-        if field_name and analysis.id:
-            expected_path = get_plots_directory(analysis.patient_id, analysis.id) / f"{plot_type}_{analysis.id}.png"
-            if expected_path.exists():
-                file_path = str(expected_path)
-
-        if not file_path or not os.path.exists(file_path):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Plot file not found. Expected at: {file_path}"
-            )
-
-    return FileResponse(
-        path=file_path,
-        media_type='image/png',
-        filename=f"{plot_type}_{analysis_id}.png"
-    )
-
-
 @router.get("/{analysis_id}/plots-urls")
 async def get_all_plots_urls(
         analysis_id: int,
@@ -654,20 +591,19 @@ async def delete_analysis(
 
         deleted_files = []
 
-        # Удаление файлов в frontend директории
         if frontend_plots_dir.exists():
             for plot_file in frontend_plots_dir.glob("*"):
                 try:
                     os.remove(plot_file)
                     deleted_files.append(str(plot_file))
-                except Exception:
-                    pass
+                except Exception as e:
+                    raise e
 
             try:
                 frontend_plots_dir.rmdir()
                 deleted_files.append(f"Директория: {frontend_plots_dir}")
-            except Exception:
-                pass
+            except Exception as e:
+                raise e
 
         await db.delete(analysis)
         await db.commit()
@@ -740,3 +676,4 @@ async def get_video_analyses(
         response.append(analysis_data.model_dump())
 
     return response
+

@@ -24,7 +24,7 @@ ALLOWED_VIDEO_TYPES = [
     "video/mkv"
 ]
 
-# Базовая директория для хранения видео
+
 BASE_VIDEO_DIR = "patient_videos"
 
 
@@ -37,14 +37,11 @@ async def save_video_to_disk(file: UploadFile, patient_id: str, filename: str) -
     """Сохранение видео на диск"""
     ensure_video_directories()
 
-    # Создаем путь для пациента
     patient_dir = os.path.join(BASE_VIDEO_DIR, str(patient_id))
     os.makedirs(patient_dir, exist_ok=True)
 
-    # Полный путь к файлу
     file_path = os.path.join(patient_dir, filename)
 
-    # Сохраняем файл
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
@@ -56,16 +53,13 @@ async def delete_video_from_disk(file_path: str):
     try:
         if os.path.exists(file_path):
             os.remove(file_path)
-            print(f"Файл успешно удален: {file_path}")
 
             # Удаляем директорию пациента если она пустая
             patient_dir = os.path.dirname(file_path)
             if os.path.exists(patient_dir) and not os.listdir(patient_dir):
                 os.rmdir(patient_dir)
-                print(f"Директория пациента удалена: {patient_dir}")
 
     except Exception as e:
-        print(f"Ошибка при удалении файла {file_path}: {str(e)}")
         raise e
 
 
@@ -152,15 +146,14 @@ async def upload_patient_video(
 
     except Exception as e:
         await db.rollback()
-        # Удаляем файл если была ошибка при сохранении в БД
+
         try:
             file_path = os.path.join(BASE_VIDEO_DIR, str(patient_id), unique_filename)
             if os.path.exists(file_path):
                 os.remove(file_path)
-                print(f"Файл удален после ошибки: {file_path}")
+
         except Exception as delete_error:
-            print(f"Ошибка при удалении файла после ошибки: {delete_error}")
-            pass
+            raise delete_error
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -175,7 +168,6 @@ async def list_patient_videos(
         current_user: User = Depends(get_current_active_user),
 ):
     """Получить список видео пациента"""
-    # Проверяем существование пациента и принадлежность врачу
     patient = await get_patient_by_id(db, patient_id, current_user.id)
     if not patient:
         raise HTTPException(
@@ -212,7 +204,6 @@ async def get_patient_video_info(
         current_user: User = Depends(get_current_active_user),
 ):
     """Получить информацию о видео пациента"""
-    # Проверяем существование пациента и принадлежность врачу
     patient = await get_patient_by_id(db, patient_id, current_user.id)
     if not patient:
         raise HTTPException(
@@ -346,7 +337,6 @@ async def delete_patient_video(
         current_user: User = Depends(get_current_active_user),
 ):
     """Удалить видео пациента"""
-    # Проверяем существование пациента и принадлежность врачу
     patient = await get_patient_by_id(db, patient_id, current_user.id)
     if not patient:
         raise HTTPException(

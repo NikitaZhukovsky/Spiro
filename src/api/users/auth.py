@@ -1,7 +1,6 @@
 import os
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
 from fastapi.security.oauth2 import OAuth2
 from fastapi.security.utils import get_authorization_scheme_param
@@ -14,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from domain import models, schemas
+
 
 load_dotenv()
 
@@ -29,7 +29,6 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 120
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 
-# Кастомный OAuth2 для работы со Swagger
 class OAuth2PasswordBearerWithCookie(OAuth2):
     def __init__(
             self,
@@ -63,8 +62,6 @@ oauth2_scheme = OAuth2PasswordBearerWithCookie(
     tokenUrl="/auth/login",
     auto_error=False
 )
-
-oauth2_form_scheme = OAuth2PasswordRequestForm
 
 router = APIRouter(
     prefix="/auth",
@@ -181,9 +178,12 @@ async def register(user_data: schemas.UserCreate, db: AsyncSession = Depends(get
 
 
 @router.post("/login", response_model=schemas.TokenWithRefresh)
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
-    """Авторизация врача (работает со Swagger OAuth2)"""
-    user = await authenticate_user(db, form_data.username, form_data.password)
+async def login(
+    login_data: schemas.LoginRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Авторизация врача"""
+    user = await authenticate_user(db, login_data.email, login_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -209,7 +209,6 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
         "refresh_token": refresh_token,
         "token_type": "bearer"
     }
-
 
 
 @router.post("/refresh", response_model=schemas.Token)
@@ -245,3 +244,4 @@ async def refresh_token(refresh_token: str, db: AsyncSession = Depends(get_db)):
         "access_token": new_access_token,
         "token_type": "bearer"
     }
+

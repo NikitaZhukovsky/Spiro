@@ -18,8 +18,6 @@ matplotlib.use('Agg')
 class RespiratoryAnalysisService:
     """
     Сервис для анализа дыхательных движений по видео.
-    Основные функции: сегментация человека, обнаружение маркеров,
-    измерение ширины тела и анализ дыхательного паттерна.
     """
 
     _processed_videos_count = 0
@@ -63,7 +61,7 @@ class RespiratoryAnalysisService:
         Returns:
             Бинарная маска человека
         """
-        # Конвертация в LAB пространство (лучше для сегментации)
+        # Конвертация в LAB пространство
         lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
         h, w = lab.shape[:2]
         lab_2d = lab.reshape(-1, 3)
@@ -192,8 +190,6 @@ class RespiratoryAnalysisService:
         """
         cls.increment_processed_count()
         start_time = datetime.now()
-
-        # Вспомогательные классы определены внутри метода для инкапсуляции
 
         class ScaleConverter:
             """Конвертер пикселей в миллиметры на основе размера маркера"""
@@ -656,19 +652,18 @@ class RespiratoryAnalysisService:
         # Формирование результата, соответствующего модели
         return {
             "results": results,
-            "plots": plots,  # Словарь с путями к графикам
+            "plots": plots,
             "text_report": text_report,
             "medical_assessment": medical_assessment,
             "total_frames": frame_count,
             "processing_time_seconds": processing_time,
             "plots_directory": plots_dir,
 
-            # Основные поля для сохранения в модель RespiratoryAnalysis
             "breathing_rate_mean_bpm": results.get('global', {}).get('breathing_rate_mean_bpm'),
             "amplitude_mean_mm": results.get('global', {}).get('amplitude_mean_mm'),
             "total_frames": frame_count,
 
-            # Пути к графикам для модели
+
             "width_line_1_plot": plots.get('width_line_1'),
             "width_line_2_plot": plots.get('width_line_2'),
             "width_line_3_plot": plots.get('width_line_3'),
