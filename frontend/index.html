@@ -1559,16 +1559,21 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
-    <script>
-        // Дополнительный JavaScript для инициализации улучшенного анализа
-        document.addEventListener('DOMContentLoaded', function() {
-            // Инициализация улучшенного модального окна анализа
-            // Связываем менеджеры
-            document.addEventListener('authAppReady', function(e) {
-                const authApp = e.detail.authApp;
-            });
-        });
-    </script>
+<!-- Модульные скрипты -->
+    <script type="module" src="utils/constants.js"></script>
+    <script type="module" src="utils/validators.js"></script>
+    <script type="module" src="utils/formatters.js"></script>
+
+    <script type="module" src="components/Toast.js"></script>
+
+    <script type="module" src="classes/PDFReportGenerator.js"></script>
+    <script type="module" src="classes/CustomSelect.js"></script>
+    <script type="module" src="classes/AuthApp.js"></script>
+    <script type="module" src="classes/PatientManager.js"></script>
+    <script type="module" src="classes/PatientVideoManager.js"></script>
+    <script type="module" src="classes/RespiratoryAnalysisManager.js"></script>
+
+    <!-- Главный файл инициализации -->
+    <script type="module" src="app.js"></script>
 </body>
 </html>
