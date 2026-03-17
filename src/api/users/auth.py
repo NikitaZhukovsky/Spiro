@@ -1,14 +1,19 @@
 import os
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
+from fastapi.security.oauth2 import OAuth2
+from fastapi.security.utils import get_authorization_scheme_param
+from starlette.requests import Request
 from infrastructure.async_db import get_db
 from sqlalchemy.future import select
 from jose import jwt, JWTError
 from passlib.context import CryptContext
-from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from domain import models, schemas
+
 
 load_dotenv()
 
@@ -20,10 +25,43 @@ REFRESH_SECRET_KEY = os.environ.get("REFRESH_SECRET_KEY", SECRET_KEY + "_refresh
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY environment variable is not set")
 
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 120
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
-OAUTH2_SCHEME = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
+
+class OAuth2PasswordBearerWithCookie(OAuth2):
+    def __init__(
+            self,
+            tokenUrl: str,
+            scheme_name: str = None,
+            scopes: dict = None,
+            auto_error: bool = True,
+    ):
+        if not scopes:
+            scopes = {}
+        flows = OAuthFlowsModel(password={"tokenUrl": tokenUrl, "scopes": scopes})
+        super().__init__(flows=flows, scheme_name=scheme_name, auto_error=auto_error)
+
+    async def __call__(self, request: Request) -> Optional[str]:
+        authorization: str = request.headers.get("Authorization")
+        scheme, param = get_authorization_scheme_param(authorization)
+
+        if not authorization or scheme.lower() != "bearer":
+            if self.auto_error:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Not authenticated",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            else:
+                return None
+        return param
+
+
+oauth2_scheme = OAuth2PasswordBearerWithCookie(
+    tokenUrl="/auth/login",
+    auto_error=False
+)
 
 router = APIRouter(
     prefix="/auth",
@@ -76,7 +114,7 @@ async def authenticate_user(db: AsyncSession, email: str, password: str):
 
 
 async def get_current_user(
-        token: str = Depends(OAUTH2_SCHEME),
+        token: str = Depends(oauth2_scheme),
         db: AsyncSession = Depends(get_db)
 ):
     if token is None:
@@ -130,7 +168,7 @@ async def register(user_data: schemas.UserCreate, db: AsyncSession = Depends(get
         name=user_data.name,
         surname=user_data.surname,
         hashed_password=hashed_password,
-        is_doctor=True  # Все регистрирующиеся пользователи - врачи
+        is_doctor=True
     )
 
     db.add(db_user)
@@ -140,13 +178,17 @@ async def register(user_data: schemas.UserCreate, db: AsyncSession = Depends(get
 
 
 @router.post("/login", response_model=schemas.TokenWithRefresh)
-async def login(login_data: schemas.LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(
+    login_data: schemas.LoginRequest,
+    db: AsyncSession = Depends(get_db)
+):
     """Авторизация врача"""
     user = await authenticate_user(db, login_data.email, login_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -202,28 +244,4 @@ async def refresh_token(refresh_token: str, db: AsyncSession = Depends(get_db)):
         "access_token": new_access_token,
         "token_type": "bearer"
     }
-
-
-@router.get("/me", response_model=schemas.UserProfile)
-async def get_current_user_profile(current_user: models.User = Depends(get_current_active_user)):
-    """Получить профиль текущего пользователя"""
-    return current_user
-
-
-@router.put("/me", response_model=schemas.UserProfile)
-async def update_current_user_profile(
-        user_data: schemas.UserUpdate,
-        db: AsyncSession = Depends(get_db),
-        current_user: models.User = Depends(get_current_active_user)
-):
-    """Обновить профиль текущего пользователя"""
-    update_data = user_data.dict(exclude_unset=True)
-
-    for field, value in update_data.items():
-        setattr(current_user, field, value)
-
-    db.add(current_user)
-    await db.commit()
-    await db.refresh(current_user)
-    return current_user
 

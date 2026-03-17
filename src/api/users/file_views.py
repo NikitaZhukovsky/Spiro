@@ -1,7 +1,7 @@
 import os
 import shutil
-from typing import List
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from typing import List, Optional
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -24,7 +24,7 @@ ALLOWED_VIDEO_TYPES = [
     "video/mkv"
 ]
 
-# Базовая директория для хранения видео
+
 BASE_VIDEO_DIR = "patient_videos"
 
 
@@ -37,14 +37,11 @@ async def save_video_to_disk(file: UploadFile, patient_id: str, filename: str) -
     """Сохранение видео на диск"""
     ensure_video_directories()
 
-    # Создаем путь для пациента
     patient_dir = os.path.join(BASE_VIDEO_DIR, str(patient_id))
     os.makedirs(patient_dir, exist_ok=True)
 
-    # Полный путь к файлу
     file_path = os.path.join(patient_dir, filename)
 
-    # Сохраняем файл
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
@@ -61,8 +58,9 @@ async def delete_video_from_disk(file_path: str):
             patient_dir = os.path.dirname(file_path)
             if os.path.exists(patient_dir) and not os.listdir(patient_dir):
                 os.rmdir(patient_dir)
+
     except Exception as e:
-        print(f"Ошибка при удалении файла {file_path}: {str(e)}")
+        raise e
 
 
 def get_video_mime_type(filename: str) -> str:
@@ -82,11 +80,11 @@ def get_video_mime_type(filename: str) -> str:
 
 @router.post("/{patient_id}/videos/", status_code=status.HTTP_201_CREATED)
 async def upload_patient_video(
-    patient_id: int,
-    title: str = None,
-    file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+        patient_id: int,
+        file: UploadFile = File(...),
+        title: Optional[str] = Form(None),
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_active_user),
 ):
     """Загрузить видео для пациента"""
     # Проверяем существование пациента и принадлежность врачу
@@ -104,7 +102,6 @@ async def upload_patient_video(
             detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_VIDEO_TYPES)}"
         )
 
-    # Проверяем размер файла (максимум 500MB)
     max_size = 500 * 1024 * 1024
     file.file.seek(0, 2)
     file_size = file.file.tell()
@@ -116,20 +113,20 @@ async def upload_patient_video(
             detail="File too large. Maximum size: 500MB"
         )
 
-    # Создаем уникальное имя файла
     file_extension = os.path.splitext(file.filename)[1]
     unique_filename = f"{uuid.uuid4().hex}{file_extension}"
 
     try:
-        # Сохраняем на диск
         file_path = await save_video_to_disk(file, str(patient_id), unique_filename)
 
-        # Сохраняем информацию в базу данных
+        if not title:
+            title = os.path.splitext(file.filename)[0]
+
         video = PatientVideo(
             patient_id=patient_id,
             title=title,
-            filename=file.filename,  # оригинальное имя
-            s3_path=file_path,  # локальный путь
+            filename=file.filename,
+            file_path=file_path,
             file_size=file_size
         )
 
@@ -138,10 +135,10 @@ async def upload_patient_video(
         await db.refresh(video)
 
         return {
-            "message": "Video uploaded successfully",
+            "message": "Видео успешно загружено",
             "video_id": video.id,
             "patient_id": patient_id,
-            "title": title,
+            "title": video.title,
             "file_path": file_path,
             "original_filename": file.filename,
             "file_size": file_size
@@ -149,13 +146,14 @@ async def upload_patient_video(
 
     except Exception as e:
         await db.rollback()
-        # Удаляем файл если была ошибка при сохранении в БД
+
         try:
             file_path = os.path.join(BASE_VIDEO_DIR, str(patient_id), unique_filename)
             if os.path.exists(file_path):
                 os.remove(file_path)
-        except:
-            pass
+
+        except Exception as delete_error:
+            raise delete_error
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -165,12 +163,11 @@ async def upload_patient_video(
 
 @router.get("/{patient_id}/videos/", response_model=List[dict])
 async def list_patient_videos(
-    patient_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+        patient_id: int,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_active_user),
 ):
     """Получить список видео пациента"""
-    # Проверяем существование пациента и принадлежность врачу
     patient = await get_patient_by_id(db, patient_id, current_user.id)
     if not patient:
         raise HTTPException(
@@ -190,7 +187,7 @@ async def list_patient_videos(
             "title": video.title,
             "filename": video.filename,
             "file_size": video.file_size,
-            "file_exists": os.path.exists(video.s3_path),
+            "file_exists": os.path.exists(video.file_path),
             "created_at": video.created_at.isoformat() if video.created_at else None,
             "patient_id": video.patient_id
         }
@@ -201,13 +198,12 @@ async def list_patient_videos(
 
 @router.get("/{patient_id}/videos/{video_id}")
 async def get_patient_video_info(
-    patient_id: int,
-    video_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+        patient_id: int,
+        video_id: int,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_active_user),
 ):
     """Получить информацию о видео пациента"""
-    # Проверяем существование пациента и принадлежность врачу
     patient = await get_patient_by_id(db, patient_id, current_user.id)
     if not patient:
         raise HTTPException(
@@ -234,7 +230,7 @@ async def get_patient_video_info(
         "title": video.title,
         "filename": video.filename,
         "file_size": video.file_size,
-        "file_exists": os.path.exists(video.s3_path),
+        "file_exists": os.path.exists(video.file_path),
         "created_at": video.created_at.isoformat() if video.created_at else None,
         "patient_id": video.patient_id
     }
@@ -242,13 +238,12 @@ async def get_patient_video_info(
 
 @router.get("/{patient_id}/videos/{video_id}/download")
 async def download_patient_video(
-    patient_id: int,
-    video_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+        patient_id: int,
+        video_id: int,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_active_user),
 ):
     """Скачать видео пациента"""
-    # Проверяем существование пациента и принадлежность врачу
     patient = await get_patient_by_id(db, patient_id, current_user.id)
     if not patient:
         raise HTTPException(
@@ -270,7 +265,7 @@ async def download_patient_video(
             detail="Video not found"
         )
 
-    if not os.path.exists(video.s3_path):
+    if not os.path.exists(video.file_path):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Video file not found on server"
@@ -279,7 +274,7 @@ async def download_patient_video(
     media_type = get_video_mime_type(video.filename)
 
     return FileResponse(
-        path=video.s3_path,
+        path=video.file_path,
         filename=video.filename,
         media_type=media_type,
         headers={"Content-Disposition": f"attachment; filename={video.filename}"}
@@ -288,13 +283,12 @@ async def download_patient_video(
 
 @router.get("/{patient_id}/videos/{video_id}/stream")
 async def stream_patient_video(
-    patient_id: int,
-    video_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+        patient_id: int,
+        video_id: int,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_active_user),
 ):
     """Стриминг видео пациента"""
-    # Проверяем существование пациента и принадлежность врачу
     patient = await get_patient_by_id(db, patient_id, current_user.id)
     if not patient:
         raise HTTPException(
@@ -316,7 +310,7 @@ async def stream_patient_video(
             detail="Video not found"
         )
 
-    if not os.path.exists(video.s3_path):
+    if not os.path.exists(video.file_path):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Video file not found on server"
@@ -325,7 +319,7 @@ async def stream_patient_video(
     media_type = get_video_mime_type(video.filename)
 
     return FileResponse(
-        path=video.s3_path,
+        path=video.file_path,
         filename=video.filename,
         media_type=media_type,
         headers={
@@ -337,13 +331,12 @@ async def stream_patient_video(
 
 @router.delete("/{patient_id}/videos/{video_id}")
 async def delete_patient_video(
-    patient_id: int,
-    video_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+        patient_id: int,
+        video_id: int,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_active_user),
 ):
     """Удалить видео пациента"""
-    # Проверяем существование пациента и принадлежность врачу
     patient = await get_patient_by_id(db, patient_id, current_user.id)
     if not patient:
         raise HTTPException(
@@ -366,14 +359,14 @@ async def delete_patient_video(
         )
 
     try:
-        # Удаляем файл с диска
-        await delete_video_from_disk(video.s3_path)
+        file_path = video.file_path
 
-        # Удаляем из базы данных
+        await delete_video_from_disk(file_path)
+
         await db.delete(video)
         await db.commit()
 
-        return {"message": "Video deleted successfully"}
+        return {"message": "Видео успешно удалено"}
 
     except Exception as e:
         await db.rollback()
@@ -385,12 +378,11 @@ async def delete_patient_video(
 
 @router.get("/{patient_id}/videos/storage-info")
 async def get_patient_storage_info(
-    patient_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+        patient_id: int,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_active_user),
 ):
     """Получить информацию о хранилище видео пациента"""
-    # Проверяем существование пациента и принадлежность врачу
     patient = await get_patient_by_id(db, patient_id, current_user.id)
     if not patient:
         raise HTTPException(

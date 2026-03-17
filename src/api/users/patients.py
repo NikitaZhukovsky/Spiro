@@ -37,10 +37,8 @@ async def create_patient(
         current_user: models.User = Depends(get_current_active_user)
 ):
     """Создать нового пациента"""
-    # Рассчитываем ИМТ
     bmi = calculate_bmi(patient_data.weight, patient_data.height)
 
-    # Конвертируем Enum в строки
     gender = patient_data.gender.value if patient_data.gender else None
     smoking_status = patient_data.smoking_status.value if patient_data.smoking_status else None
 
@@ -48,6 +46,8 @@ async def create_patient(
         doctor_id=current_user.id,
         name=patient_data.name,
         surname=patient_data.surname,
+        last_name=patient_data.last_name,
+        email=patient_data.email,
         age=patient_data.age,
         gender=gender,
         height=patient_data.height,
@@ -117,7 +117,6 @@ async def update_patient(
 
     update_data = patient_data.dict(exclude_unset=True)
 
-    # Конвертируем Enum в строки
     if 'gender' in update_data and update_data['gender'] is not None:
         update_data['gender'] = update_data['gender'].value
 
@@ -159,3 +158,4 @@ async def delete_patient(
     await db.commit()
 
     return {"message": "Patient deleted successfully"}
+

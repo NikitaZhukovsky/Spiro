@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpiroApp | Медицинская видео аналитика</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@jspdf/standard-fonts@1.0.0/dist/standard-fonts.umd.min.js"></script>
+    <style>
+        /* Дополнительные стили для улучшенного анализа */
+        .enhanced-analysis-section {
+            display: none;
+        }
+
+        .enhanced-analysis-section.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-lungs"></i>
+                    <span>SpiroApp</span>
+                </div>
+                <nav class="nav-menu">
+                    <button id="loginNav" class="nav-btn active" data-section="login">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>Вход</span>
+                    </button>
+                    <button id="registerNav" class="nav-btn" data-section="register">
+                        <i class="fas fa-user-plus"></i>
+                        <span>Регистрация</span>
+                    </button>
+                    <button id="patientsNav" class="nav-btn hidden" data-section="patients">
+                        <i class="fas fa-user"></i>
+                        <span>Пациенты</span>
+                    </button>
+                    <button id="logoutNav" class="nav-btn btn-danger hidden">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Выход</span>
+                    </button>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="auth-container">
+                <!-- Login Section -->
+                <section id="loginSection" class="auth-section active">
+                    <div class="auth-card">
+                        <div class="auth-header">
+                            <div class="auth-icon">
+                                <i class="fas fa-lock"></i>
+                            </div>
+                            <h1>Добро пожаловать</h1>
+                            <p>Войдите в свою учетную запись</p>
+                        </div>
+
+                        <form id="loginForm" class="auth-form">
+                            <div class="input-group">
+                                <label for="loginEmail">
+                                    <i class="fas fa-envelope"></i>
+                                    Email адрес
+                                </label>
+                                <input
+                                    type="email"
+                                    id="loginEmail"
+                                    name="email"
+                                    required
+                                    placeholder="your@email.com"
+                                    autocomplete="email"
+                                >
+                            </div>
+
+                            <div class="input-group">
+                                <label for="loginPassword">
+                                    <i class="fas fa-key"></i>
+                                    Пароль
+                                </label>
+                                <div class="password-input-wrapper">
+                                    <input
+                                        type="password"
+                                        id="loginPassword"
+                                        name="password"
+                                        required
+                                        placeholder="Введите ваш пароль"
+                                        autocomplete="current-password"
+                                    >
+                                    <button type="button" class="password-toggle" data-target="loginPassword">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-full">
+                                <span class="btn-text">Войти</span>
+                                <div class="btn-loader hidden">
+                                    <div class="spinner"></div>
+                                </div>
+                            </button>
+                        </form>
+
+                        <div class="auth-footer">
+                            <p>Нет аккаунта? <a href="#" class="auth-link" data-section="register">Зарегистрируйтесь</a></p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Register Section -->
+                <section id="registerSection" class="auth-section">
+                    <div class="auth-card">
+                        <div class="auth-header">
+                            <div class="auth-icon">
+                                <i class="fas fa-user-plus"></i>
+                            </div>
+                            <h1>Создать аккаунт</h1>
+                            <p>Заполните информацию для регистрации</p>
+                        </div>
+
+                        <form id="registerForm" class="auth-form">
+                            <div class="form-row">
+                                <div class="input-group">
+                                    <label for="regName">
+                                        <i class="fas fa-user"></i>
+                                        Имя
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="regName"
+                                        name="name"
+                                        required
+                                        placeholder="Ваше имя"
+                                        autocomplete="given-name"
+                                    >
+                                </div>
+                                <div class="input-group">
+                                    <label for="regSurname">
+                                        <i class="fas fa-users"></i>
+                                        Фамилия
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="regSurname"
+                                        name="surname"
+                                        required
+                                        placeholder="Ваша фамилия"
+                                        autocomplete="family-name"
+                                    >
+                                </div>
+                            </div>
+
+                            <div class="input-group">
+                                <label for="regEmail">
+                                    <i class="fas fa-envelope"></i>
+                                    Email адрес
+                                </label>
+                                <input
+                                        type="email"
+                                        id="regEmail"
+                                        name="email"
+                                        required
+                                        placeholder="your@email.com"
+                                        autocomplete="email"
+                                >
+                            </div>
+
+                            <div class="input-group">
+                                <label for="regPassword">
+                                    <i class="fas fa-lock"></i>
+                                    Пароль
+                                </label>
+                                <div class="password-input-wrapper">
+                                    <input
+                                        type="password"
+                                        id="regPassword"
+                                        name="password"
+                                        required
+                                        placeholder="Создайте надежный пароль"
+                                        autocomplete="new-password"
+                                    >
+                                    <button type="button" class="password-toggle" data-target="regPassword">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <div class="password-strength">
+                                    <div class="strength-bar"></div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-full">
+                                <span class="btn-text">Создать аккаунт</span>
+                                <div class="btn-loader hidden">
+                                    <div class="spinner"></div>
+                                </div>
+                            </button>
+                        </form>
+
+                        <div class="auth-footer">
+                            <p>Уже есть аккаунт? <a href="#" class="auth-link" data-section="login">Войдите</a></p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Patients Section -->
+                <section id="patientsSection" class="auth-section">
+                    <div class="patients-dashboard">
+                        <!-- Header -->
+                        <div class="dashboard-header">
+                            <div class="header-content">
+                                <div class="header-title">
+                                    <h1><i class="fas fa-user"></i>Управление пациентами</h1>
+                                    <p>Добавление и управление картами пациентов</p>
+                                </div>
+                                <div class="header-actions">
+                                    <button class="btn btn-primary" id="addPatient">
+                                        <i class="fas fa-plus"></i>
+                                        Добавить пациента
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Statistics -->
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-icon total">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="totalPatientsCount">0</span>
+                                    <span class="stat-label">Всего пациентов</span>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon recent">
+                                    <i class="fas fa-calendar-plus"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="recentPatients">0</span>
+                                    <span class="stat-label">За месяц</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Main Content -->
+                        <div class="dashboard-content">
+                            <!-- Patients List -->
+                            <div class="content-main">
+                                <div class="content-header">
+                                    <h2>Список пациентов</h2>
+                                    <div class="search-box">
+                                        <input type="text" id="patientSearch" placeholder="Поиск пациентов...">
+                                        <i class="fas fa-search"></i>
+                                    </div>
+                                </div>
+
+                                <div class="patients-container" id="patientsContainer">
+                                    <div class="empty-state">
+                                        <i class="fas fa-user-plus"></i>
+                                        <h3>Пациенты не найдены</h3>
+                                        <p>Добавьте первого пациента для начала работы</p>
+                                        <button class="btn btn-primary" id="emptyAddPatient">
+                                            <i class="fas fa-plus"></i>
+                                            Добавить пациента
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sidebar -->
+                            <div class="content-sidebar">
+                                <!-- Quick Actions -->
+                                <div class="sidebar-section">
+                                    <h3>Быстрые действия</h3>
+                                    <div class="quick-actions">
+                                        <button class="quick-action" id="refreshPatients">
+                                            <div class="action-icon refresh">
+                                                <i class="fas fa-sync-alt"></i>
+                                            </div>
+                                            <span>Обновить список</span>
+                                        </button>
+                                        <button class="quick-action" id="exportPatients">
+                                            <div class="action-icon export">
+                                                <i class="fas fa-file-export"></i>
+                                            </div>
+                                            <span>Экспорт данных</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Information -->
+                                <div class="sidebar-section">
+                                    <h3>Информация</h3>
+                                    <div class="info-panel">
+                                        <div class="info-item">
+                                            <i class="fas fa-info-circle"></i>
+                                            <span>Данные пациентов защищены</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <i class="fas fa-database"></i>
+                                            <span>Авто-архивация через 5 лет</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Patient Detail Section -->
+                <section id="patientDetailSection" class="auth-section">
+                    <div class="profile-dashboard">
+                        <!-- Header -->
+                        <div class="dashboard-header">
+                            <div class="header-content">
+                                <div class="header-title">
+                                    <h1><i class="fas fa-user"></i><span id="patientDetailName">Пациент</span></h1>
+                                    <p>Данные и видео анализы</p>
+                                </div>
+                                <div class="header-actions">
+                                    <button class="btn btn-secondary" id="backToPatients">
+                                        <i class="fas fa-arrow-left"></i>
+                                        Назад к списку
+                                    </button>
+                                    <button class="btn btn-primary" id="editPatientBtn">
+                                        <i class="fas fa-edit"></i>
+                                        Редактировать
+                                    </button>
+                                    <button class="btn btn-secondary" id="viewPatientAnalyses">
+                                        <i class="fas fa-chart-line"></i>
+                                        Анализы
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Statistics -->
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-icon account">
+                                    <i class="fas fa-id-card"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="patientAccountAge">—</span>
+                                    <span class="stat-label">В системе</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Main Content -->
+                        <div class="dashboard-content">
+                            <!-- Patient Info -->
+                            <div class="content-main">
+                                <div class="content-header">
+                                    <h2>Информация о пациенте</h2>
+                                </div>
+
+                                <!-- View Mode: Display -->
+                                <div class="profile-info-grid" id="patientInfoDisplay">
+                                    <div class="profile-info-card">
+                                        <div class="info-header">
+                                            <div class="info-icon">
+                                                <i class="fas fa-id-card"></i>
+                                            </div>
+                                            <h3>Основная информация</h3>
+                                        </div>
+                                        <div class="info-content">
+                                            <div class="info-item">
+                                                <label>Имя</label>
+                                                <span id="patientName" class="info-value">—</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <label>Фамилия</label>
+                                                <span id="patientSurname" class="info-value">—</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <label>Отчество</label>
+                                                <span id="patientLastName" class="info-value">—</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <label>Email</label>
+                                                <span id="patientEmail" class="info-value">—</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <label>Возраст</label>
+                                                <span id="patientAge" class="info-value">—</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <label>Пол</label>
+                                                <span id="patientGender" class="info-value">—</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="profile-info-card">
+                                        <div class="info-header">
+                                            <div class="info-icon">
+                                                <i class="fas fa-chart-line"></i>
+                                            </div>
+                                            <h3>Медицинские показатели</h3>
+                                        </div>
+                                        <div class="info-content">
+                                            <div class="info-item">
+                                                <label>Рост</label>
+                                                <span id="patientHeight" class="info-value">—</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <label>Вес</label>
+                                                <span id="patientWeight" class="info-value">—</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <label>ИМТ</label>
+                                                <span id="patientBMI" class="info-value">—</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="profile-info-card">
+                                        <div class="info-header">
+                                            <div class="info-icon">
+                                                <i class="fas fa-smoking"></i>
+                                            </div>
+                                            <h3>Информация о курении</h3>
+                                        </div>
+                                        <div class="info-content">
+                                            <div class="info-item">
+                                                <label>Статус курения</label>
+                                                <span id="patientSmokingStatus" class="info-value">—</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <label>Стаж курения</label>
+                                                <span id="patientSmokingYears" class="info-value">—</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Patient Videos Section -->
+                                <div class="patient-videos-section">
+                                    <div class="section-header">
+                                        <h2><i class="fas fa-video-medical"></i>Видео анализы пациента</h2>
+                                        <button class="btn btn-primary" id="addPatientVideo">
+                                            <i class="fas fa-upload"></i>
+                                            Загрузить видео
+                                        </button>
+                                    </div>
+
+                                    <div class="videos-container grid-view" id="patientVideosContainer">
+                                        <div class="empty-state">
+                                            <i class="fas fa-video-slash"></i>
+                                            <h3>Видео анализы не найдены</h3>
+                                            <p>Загрузите первое видео для анализа дыхания пациента</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sidebar -->
+                            <div class="content-sidebar">
+                                <!-- Quick Actions -->
+                                <div class="sidebar-section">
+                                    <h3>Быстрые действия</h3>
+                                    <div class="quick-actions">
+                                        <button class="quick-action" id="refreshPatientVideos">
+                                            <div class="action-icon refresh">
+                                                <i class="fas fa-sync-alt"></i>
+                                            </div>
+                                            <span>Обновить</span>
+                                        </button>
+                                        <button class="quick-action" id="scheduleAppointment">
+                                            <div class="action-icon calendar">
+                                                <i class="fas fa-calendar-plus"></i>
+                                            </div>
+                                            <span>Запланировать визит</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Medical Notes -->
+                                <div class="sidebar-section">
+                                    <h3>Заметки</h3>
+                                    <div class="medical-notes">
+                                        <textarea
+                                            id="patientMedicalNotes"
+                                            placeholder="Добавьте заметки о пациенте"
+                                            rows="4"
+                                        ></textarea>
+                                        <button class="btn btn-primary btn-full" id="saveMedicalNotes">
+                                            <i class="fas fa-save"></i>
+                                            Сохранить заметки
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Patient Analyses Section -->
+                <section id="patientAnalysesSection" class="auth-section">
+                    <div class="profile-dashboard">
+                        <!-- Header -->
+                        <div class="dashboard-header">
+                            <div class="header-content">
+                                <div class="header-title">
+                                    <h1><i class="fas fa-chart-line"></i><span id="patientDetailName">Анализы пациента</span></h1>
+                                    <p>Результаты анализа дыхательных движений</p>
+                                </div>
+                                <div class="header-actions">
+                                    <button class="btn btn-secondary" id="backToVideosFromAnalysis">
+                                        <i class="fas fa-arrow-left"></i>
+                                        Назад к пациенту
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Main Content -->
+                        <div class="dashboard-content">
+                            <!-- Analyses List -->
+                            <div class="content-main">
+                                <div class="content-header">
+                                    <h2>Список анализов</h2>
+                                    <div class="search-box">
+                                        <input type="text" id="analysisSearch" placeholder="Поиск анализов...">
+                                        <i class="fas fa-search"></i>
+                                    </div>
+                                </div>
+
+                                <div class="analyses-container" id="analysesContainer">
+                                    <div class="empty-state">
+                                        <i class="fas fa-chart-bar"></i>
+                                        <h3>Анализы не найдены</h3>
+                                        <p>Запустите первый анализ для видео пациента</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sidebar -->
+                            <div class="content-sidebar">
+                                <!-- Quick Actions -->
+                                <div class="sidebar-section">
+                                    <h3>Быстрые действия</h3>
+                                    <div class="quick-actions">
+                                        <button class="quick-action" id="refreshAnalyses">
+                                            <div class="action-icon refresh">
+                                                <i class="fas fa-sync-alt"></i>
+                                            </div>
+                                            <span>Обновить список</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Information -->
+                                <div class="sidebar-section">
+                                    <h3>Информация</h3>
+                                    <div class="info-panel">
+                                        <div class="info-item">
+                                            <i class="fas fa-info-circle"></i>
+                                            <span>Анализ выполняется в фоновом режиме</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <i class="fas fa-clock"></i>
+                                            <span>Среднее время анализа: 2-5 минут</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <i class="fas fa-chart-line"></i>
+                                            <span>Анализируется частота и амплитуда дыхания</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- Add Patient Modal -->
+        <div class="modal" id="patientModal">
+            <div class="modal-content wide">
+                <div class="modal-header">
+                    <h2><i class="fas fa-user-plus"></i><span id="patientModalTitle">Добавить пациента</span></h2>
+                    <button type="button" class="modal-close" id="closePatientModal">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="patientForm" class="auth-form wide-form">
+                        <div class="form-row">
+                            <div class="input-group">
+                                <label for="patientNameInput">
+                                    <i class="fas fa-user"></i>
+                                    Имя
+                                </label>
+                                <input
+                                    type="text"
+                                    id="patientNameInput"
+                                    name="name"
+                                    required
+                                    placeholder="Введите имя"
+                                    autocomplete="given-name"
+                                >
+                            </div>
+                            <div class="input-group">
+                                <label for="patientSurnameInput">
+                                    <i class="fas fa-users"></i>
+                                    Фамилия
+                                </label>
+                                <input
+                                    type="text"
+                                    id="patientSurnameInput"
+                                    name="surname"
+                                    required
+                                    placeholder="Введите фамилию"
+                                    autocomplete="family-name"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="input-group">
+                                <label for="patientLastNameInput">
+                                    <i class="fas fa-user-circle"></i>
+                                    Отчество
+                                </label>
+                                <input
+                                    type="text"
+                                    id="patientLastNameInput"
+                                    name="last_name"
+                                    placeholder="Введите отчество"
+                                    autocomplete="additional-name"
+                                >
+                            </div>
+                            <div class="input-group">
+                                <label for="patientEmailInput">
+                                    <i class="fas fa-envelope"></i>
+                                    Email
+                                </label>
+                                <input
+                                    type="email"
+                                    id="patientEmailInput"
+                                    name="email"
+                                    placeholder="email@example.com"
+                                    autocomplete="email"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="input-group">
+                                <label for="patientAgeInput">
+                                    <i class="fas fa-birthday-cake"></i>
+                                    Возраст
+                                </label>
+                                <input
+                                    type="number"
+                                    id="patientAgeInput"
+                                    name="age"
+                                    placeholder="Возраст пациента"
+                                    min="1"
+                                    max="120"
+                                    step="1"
+                                >
+                            </div>
+                            <div class="input-group">
+                                <label for="patientGenderSelect">
+                                    <i class="fas fa-venus-mars"></i>
+                                    Пол
+                                </label>
+                                <div class="custom-select-wrapper">
+                                    <div class="custom-select" data-target="patientGenderSelect">
+                                        <div class="custom-select__trigger">
+                                            <span class="custom-select__selected">Выберите пол</span>
+                                            <div class="custom-select__arrow">
+                                                <i class="fas fa-chevron-down"></i>
+                                            </div>
+                                        </div>
+                                        <div class="custom-select__options">
+                                            <div class="custom-select__option" data-value="male">Мужской</div>
+                                            <div class="custom-select__option" data-value="female">Женский</div>
+                                        </div>
+                                    </div>
+                                    <select id="patientGenderSelect" name="gender" class="hidden-select">
+                                        <option value="male">Мужской</option>
+                                        <option value="female">Женский</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="input-group">
+                                <label for="patientHeightInput">
+                                    <i class="fas fa-ruler-vertical"></i>
+                                    Рост (см)
+                                </label>
+                                <input
+                                    type="number"
+                                    id="patientHeightInput"
+                                    name="height"
+                                    placeholder="Рост в сантиметрах"
+                                    min="100"
+                                    max="250"
+                                    step="1"
+                                >
+                            </div>
+                            <div class="input-group">
+                                <label for="patientWeightInput">
+                                    <i class="fas fa-weight"></i>
+                                    Вес (кг)
+                                </label>
+                                <input
+                                    type="number"
+                                    id="patientWeightInput"
+                                    name="weight"
+                                    placeholder="Вес в килограммах"
+                                    min="30"
+                                    max="300"
+                                    step="0.1"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="input-group">
+                                <label for="patientSmokingStatusSelect">
+                                    <i class="fas fa-smoking"></i>
+                                    Статус курения
+                                </label>
+                                <div class="custom-select-wrapper">
+                                    <div class="custom-select" data-target="patientSmokingStatusSelect">
+                                        <div class="custom-select__trigger">
+                                            <span class="custom-select__selected">Выберите статус курения</span>
+                                            <div class="custom-select__arrow">
+                                                <i class="fas fa-chevron-down"></i>
+                                            </div>
+                                        </div>
+                                        <div class="custom-select__options">
+                                            <div class="custom-select__option" data-value="non_smoker">Не курю</div>
+                                            <div class="custom-select__option" data-value="active_smoker">Активный курильщик</div>
+                                            <div class="custom-select__option" data-value="passive_smoker">Пассивный курильщик</div>
+                                        </div>
+                                    </div>
+                                    <select id="patientSmokingStatusSelect" name="smoking_status" class="hidden-select">
+                                        <option value="non_smoker">Не курю</option>
+                                        <option value="active_smoker">Активный курильщик</option>
+                                        <option value="passive_smoker">Пассивный курильщик</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <label for="patientSmokingYearsInput">
+                                    <i class="fas fa-clock"></i>
+                                    Стаж курения
+                                </label>
+                                <input
+                                    type="number"
+                                    id="patientSmokingYearsInput"
+                                    name="smoking_years"
+                                    placeholder="Стаж курения в годах"
+                                    min="0"
+                                    max="80"
+                                    step="1"
+                                >
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="cancelPatient">
+                        Отмена
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="submitPatientBtn">
+                        <span class="btn-text" id="patientSubmitText">Добавить пациента</span>
+                        <div class="btn-loader hidden">
+                            <div class="spinner"></div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Patient Modal -->
+        <div class="modal" id="editPatientModal">
+            <div class="modal-content wide">
+                <div class="modal-header">
+                    <h2><i class="fas fa-user-edit"></i><span id="editPatientModalTitle">Редактировать пациента</span></h2>
+                    <button type="button" class="modal-close" id="closeEditPatientModal">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="editPatientForm" class="auth-form wide-form">
+                        <input type="hidden" id="editPatientId" name="id">
+                        <div class="form-row">
+                            <div class="input-group">
+                                <label for="editPatientNameModal">
+                                    <i class="fas fa-user"></i>
+                                    Имя
+                                </label>
+                                <input
+                                    type="text"
+                                    id="editPatientNameModal"
+                                    name="name"
+                                    required
+                                    placeholder="Введите имя"
+                                    autocomplete="given-name"
+                                >
+                            </div>
+                            <div class="input-group">
+                                <label for="editPatientSurnameModal">
+                                    <i class="fas fa-users"></i>
+                                    Фамилия
+                                </label>
+                                <input
+                                    type="text"
+                                    id="editPatientSurnameModal"
+                                    name="surname"
+                                    required
+                                    placeholder="Введите фамилию"
+                                    autocomplete="family-name"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="input-group">
+                                <label for="editPatientLastNameModal">
+                                    <i class="fas fa-user-circle"></i>
+                                    Отчество
+                                </label>
+                                <input
+                                    type="text"
+                                    id="editPatientLastNameModal"
+                                    name="last_name"
+                                    placeholder="Введите отчество"
+                                    autocomplete="additional-name"
+                                >
+                            </div>
+                            <div class="input-group">
+                                <label for="editPatientEmailModal">
+                                    <i class="fas fa-envelope"></i>
+                                    Email
+                                </label>
+                                <input
+                                    type="email"
+                                    id="editPatientEmailModal"
+                                    name="email"
+                                    placeholder="email@example.com"
+                                    autocomplete="email"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="input-group">
+                                <label for="editPatientAgeModal">
+                                    <i class="fas fa-birthday-cake"></i>
+                                    Возраст
+                                </label>
+                                <input
+                                    type="number"
+                                    id="editPatientAgeModal"
+                                    name="age"
+                                    placeholder="Возраст пациента"
+                                    min="1"
+                                    max="120"
+                                    step="1"
+                                >
+                            </div>
+                            <div class="input-group">
+                                <label for="editPatientGenderModal">
+                                    <i class="fas fa-venus-mars"></i>
+                                    Пол
+                                </label>
+                                <div class="custom-select-wrapper">
+                                    <div class="custom-select" data-target="editPatientGenderSelectModal">
+                                        <div class="custom-select__trigger">
+                                            <span class="custom-select__selected">Выберите пол</span>
+                                            <div class="custom-select__arrow">
+                                                <i class="fas fa-chevron-down"></i>
+                                            </div>
+                                        </div>
+                                        <div class="custom-select__options">
+                                            <div class="custom-select__option" data-value="male">Мужской</div>
+                                            <div class="custom-select__option" data-value="female">Женский</div>
+                                        </div>
+                                    </div>
+                                    <select id="editPatientGenderSelectModal" name="gender" class="hidden-select">
+                                        <option value="male">Мужской</option>
+                                        <option value="female">Женский</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="input-group">
+                                <label for="editPatientHeightModal">
+                                    <i class="fas fa-ruler-vertical"></i>
+                                    Рост (см)
+                                </label>
+                                <input
+                                    type="number"
+                                    id="editPatientHeightModal"
+                                    name="height"
+                                    placeholder="Рост в сантиметрах"
+                                    min="100"
+                                    max="250"
+                                    step="1"
+                                >
+                            </div>
+                            <div class="input-group">
+                                <label for="editPatientWeightModal">
+                                    <i class="fas fa-weight"></i>
+                                    Вес (кг)
+                                </label>
+                                <input
+                                    type="number"
+                                    id="editPatientWeightModal"
+                                    name="weight"
+                                    placeholder="Вес в килограммах"
+                                    min="30"
+                                    max="300"
+                                    step="0.1"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="input-group">
+                                <label for="editPatientSmokingStatusModal">
+                                    <i class="fas fa-smoking"></i>
+                                    Статус курения
+                                </label>
+                                <div class="custom-select-wrapper">
+                                    <div class="custom-select" data-target="editPatientSmokingStatusSelectModal">
+                                        <div class="custom-select__trigger">
+                                            <span class="custom-select__selected">Выберите статус курения</span>
+                                            <div class="custom-select__arrow">
+                                                <i class="fas fa-chevron-down"></i>
+                                            </div>
+                                        </div>
+                                        <div class="custom-select__options">
+                                            <div class="custom-select__option" data-value="non_smoker">Не курю</div>
+                                            <div class="custom-select__option" data-value="active_smoker">Активный курильщик</div>
+                                            <div class="custom-select__option" data-value="passive_smoker">Пассивный курильщик</div>
+                                        </div>
+                                    </div>
+                                    <select id="editPatientSmokingStatusSelectModal" name="smoking_status" class="hidden-select">
+                                        <option value="non_smoker">Не курю</option>
+                                        <option value="active_smoker">Активный курильщик</option>
+                                        <option value="passive_smoker">Пассивный курильщик</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <label for="editPatientSmokingYearsModal">
+                                    <i class="fas fa-clock"></i>
+                                    Стаж курения
+                                </label>
+                                <input
+                                    type="number"
+                                    id="editPatientSmokingYearsModal"
+                                    name="smoking_years"
+                                    placeholder="Стаж курения в годах"
+                                    min="0"
+                                    max="80"
+                                    step="1"
+                                >
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="cancelEditPatient">
+                        Отмена
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="submitEditPatientBtn">
+                        <span class="btn-text" id="editPatientSubmitText">Сохранить изменения</span>
+                        <div class="btn-loader hidden">
+                            <div class="spinner"></div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Modal for Patient Videos -->
+        <div class="modal" id="uploadPatientModal">
+            <div class="modal-content upload-modal">
+                <div class="modal-header">
+                    <h2><i class="fas fa-upload"></i>Загрузка видео</h2>
+                    <button class="modal-close" id="closePatientUploadModal">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="uploadPatientForm" class="upload-form">
+                        <div class="upload-area" id="uploadPatientArea">
+                            <div class="upload-placeholder">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <h4>Перетащите видео сюда</h4>
+                                <p>или нажмите для выбора файла</p>
+                                <p class="text-small">MP4, AVI, MOV до 500MB</p>
+                            </div>
+                            <input type="file" id="patientVideoFile" accept="video/*" hidden>
+                            <div class="file-info" id="patientFileInfo" style="display: none;">
+                                <div class="file-details">
+                                    <i class="fas fa-file-video"></i>
+                                    <div class="file-meta">
+                                        <span class="file-name" id="patientFileName"></span>
+                                        <span class="file-size" id="patientFileSize"></span>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-change" id="changePatientFile">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="videoTitle">
+                                Название видео
+                            </label>
+                            <input
+                                type="text"
+                                id="videoTitle"
+                                name="title"
+                                placeholder="Введите описание видео"
+                            >
+                        </div>
+
+                        <div class="upload-progress" id="uploadPatientProgress" style="display: none;">
+                            <div class="progress-circle">
+                                <svg width="120" height="120" viewBox="0 0 120 120">
+                                    <circle class="progress-ring-bg" cx="60" cy="60" r="54" stroke-width="8"/>
+                                    <circle class="progress-ring" cx="60" cy="60" r="54" stroke-width="8"
+                                            stroke-dasharray="339.292" stroke-dashoffset="339.292"/>
+                                </svg>
+                                <div class="progress-text">
+                                    <span id="patientProgressPercent">0%</span>
+                                </div>
+                            </div>
+                            <div class="progress-details">
+                                <div class="file-uploading">
+                                    <i class="fas fa-file-video"></i>
+                                    <div class="file-details">
+                                        <span id="patientProgressFileName">video.mp4</span>
+                                        <span id="patientProgressSpeed">Подготовка...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" id="cancelPatientUpload">Отмена</button>
+                            <button type="submit" class="btn btn-primary" id="uploadPatientBtn" disabled>
+                                <span class="btn-text">Начать загрузку</span>
+                                <div class="btn-loader hidden">
+                                    <div class="spinner"></div>
+                                </div>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview Modal -->
+        <div class="modal" id="previewModal">
+            <div class="modal-content large">
+                <div class="modal-header">
+                    <h2><i class="fas fa-play-circle"></i>Просмотр видео</h2>
+                    <button class="modal-close" id="closePreview">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="video-player-container">
+                        <div class="video-controls-bar">
+                        </div>
+
+                        <video id="previewVideo" class="video-player">
+                            Ваш браузер не поддерживает видео тег.
+                        </video>
+
+                        <div class="video-loading" id="videoLoading" style="display: none;">
+                            <div class="loading-spinner">
+                                <i class="fas fa-spinner fa-spin"></i>
+                            </div>
+                            <p>Загрузка видео...</p>
+                        </div>
+                    </div>
+
+                    <div class="video-info">
+                        <h4 id="previewTitle">Название видео</h4>
+                        <div class="video-meta">
+                            <span><i class="fas fa-calendar"></i> <span id="previewDate">—</span></span>
+                            <span><i class="fas fa-weight-hanging"></i> <span id="previewSize">—</span></span>
+                            <span id="previewDuration">—</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="downloadPreview">
+                        <i class="fas fa-download"></i>
+                        Скачать
+                    </button>
+                    <button class="btn btn-primary" id="analyzeVideo">
+                        <i class="fas fa-chart-line"></i>
+                        Анализировать
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Modal -->
+        <div class="modal" id="analysisModal">
+            <div class="modal-content wide">
+                <div class="modal-header">
+                    <h2><i class="fas fa-chart-line"></i>Анализ дыхательных движений</h2>
+                    <button type="button" class="modal-close" id="closeAnalysisModal">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="analysisForm" class="auth-form wide-form">
+                        <div id="analysisFormSection">
+
+                            <!-- Analysis Parameters -->
+                            <div class="form-section">
+                                <h3 class="section-title">Параметры анализа</h3>
+
+                                <div class="form-row">
+                                    <div class="input-group">
+                                        <label for="markerColor">
+                                            <i class="fas fa-palette"></i>
+                                            Цвет маркера
+                                        </label>
+                                        <div class="color-input-wrapper">
+                                            <div class="custom-select-wrapper">
+                                                <div class="custom-select" data-target="markerColor">
+                                                    <div class="custom-select__trigger">
+                                                        <span class="custom-select__selected">
+                                                            <span class="color-preview" id="markerColorPreview"></span>
+                                                            Красный
+                                                        </span>
+                                                        <div class="custom-select__arrow">
+                                                            <i class="fas fa-chevron-down"></i>
+                                                        </div>
+                                                    </div>
+                                                    <div class="custom-select__options">
+                                                        <div class="custom-select__option" data-value="#FF0000">
+                                                            <span class="color-preview" style="background-color: #FF0000;"></span>
+                                                            Красный
+                                                        </div>
+                                                        <div class="custom-select__option" data-value="#00FF00">
+                                                            <span class="color-preview" style="background-color: #00FF00;"></span>
+                                                            Зеленый
+                                                        </div>
+                                                        <div class="custom-select__option" data-value="#0000FF">
+                                                            <span class="color-preview" style="background-color: #0000FF;"></span>
+                                                            Синий
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <select id="markerColor" name="marker_color" class="hidden-select" required>
+                                                    <option value="#FF0000" selected>Красный</option>
+                                                    <option value="#00FF00">Зеленый</option>
+                                                    <option value="#0000FF">Синий</option>
+                                                    <option value="#FFFF00">Желтый</option>
+                                                    <option value="#FF00FF">Пурпурный</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="input-group">
+                                        <label for="markerSize">
+                                            <i class="fas fa-ruler"></i>
+                                            Размер маркера (мм)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            id="markerSize"
+                                            name="marker_size_mm"
+                                            required
+                                            placeholder="Например: 10.5"
+                                            min="0.1"
+                                            max="100"
+                                            step="0.1"
+                                            value="10"
+                                        >
+                                    </div>
+                                </div>
+
+                                <div class="form-hint">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span>Маркер должен быть четко виден на видео. Рекомендуемый размер: 5-20 мм.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Analysis Progress -->
+                        <div id="analysisProgress" style="display: none;">
+                            <div class="analysis-progress-card">
+                                <div class="progress-header">
+                                    <div class="progress-icon" id="analysisStatusIcon">
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                    </div>
+                                    <h3>Выполняется анализ</h3>
+                                    <p id="analysisStatusMessage">Обработка видео...</p>
+                                </div>
+
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" id="analysisProgressBar" style="width: 0%"></div>
+                                    </div>
+                                    <div class="progress-text">
+                                        <span id="analysisProgressText">Подготовка...</span>
+                                        <span id="elapsedTime">0 сек</span>
+                                    </div>
+                                </div>
+
+                                <div class="progress-details">
+                                    <div class="detail-item">
+                                        <i class="fas fa-video"></i>
+                                        <span>Анализ дыхательных движений</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <i class="fas fa-microscope"></i>
+                                        <span>Определение частоты и амплитуды</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <i class="fas fa-chart-line"></i>
+                                        <span>Построение графиков</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Analysis Results -->
+                        <div id="analysisResults" style="display: none;">
+                            <div class="results-header">
+                                <h3><i class="fas fa-check-circle success"></i>Анализ завершен!</h3>
+                                <p>Результаты анализа дыхательных движений</p>
+                            </div>
+
+                            <!-- Key Metrics -->
+                            <div class="metrics-grid">
+                                <div class="metric-card">
+                                    <div class="metric-icon">
+                                        <i class="fas fa-lungs"></i>
+                                    </div>
+                                    <div class="metric-info">
+                                        <span class="metric-value" id="breathingRate">—</span>
+                                        <span class="metric-label">Частота дыхания</span>
+                                    </div>
+                                </div>
+
+                                <div class="metric-card">
+                                    <div class="metric-icon">
+                                        <i class="fas fa-expand-arrows-alt"></i>
+                                    </div>
+                                    <div class="metric-info">
+                                        <span class="metric-value" id="amplitude">—</span>
+                                        <span class="metric-label">Амплитуда движений</span>
+                                    </div>
+                                </div>
+
+                                <div class="metric-card">
+                                    <div class="metric-icon">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </div>
+                                    <div class="metric-info">
+                                        <span class="metric-value" id="synchronization">—</span>
+                                        <span class="metric-label">Синхронизация</span>
+                                    </div>
+                                </div>
+
+                                <div class="metric-card">
+                                    <div class="metric-icon">
+                                        <i class="fas fa-clock"></i>
+                                    </div>
+                                    <div class="metric-info">
+                                        <span class="metric-value" id="analysisDuration">—</span>
+                                        <span class="metric-label">Длительность анализа</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Analysis Details -->
+                            <div class="analysis-details">
+                                <h4><i class="fas fa-info-circle"></i>Детали анализа</h4>
+                                <div class="details-list" id="analysisDetails">
+                                    <div class="analysis-detail-item">
+                                        <div class="detail-label">Всего кадров:</div>
+                                        <div class="detail-value" id="totalFrames">—</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Medical Assessment -->
+                            <div class="medical-assessment" id="medicalAssessmentSection">
+                                <h4><i class="fas fa-stethoscope"></i>Медицинская оценка</h4>
+                                <div class="assessment-content">
+                                    <p id="medicalAssessment">Оценка будет доступна после анализа...</p>
+                                </div>
+                            </div>
+                        </div>
+
+                            <!-- Analysis Error -->
+                            <div id="analysisError" style="display: none;">
+                                <div class="error-card">
+                                    <div class="error-icon">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                    </div>
+                                    <h3>Произошла ошибка</h3>
+                                    <p id="analysisErrorMessage">Не удалось выполнить анализ</p>
+                                    <button class="btn btn-primary" id="retryAnalysis">
+                                        <i class="fas fa-redo"></i>
+                                        Попробовать снова
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer" id="analysisModalFooter">
+                        <button type="button" class="btn btn-secondary" id="cancelAnalysis" style="display: none;">
+                            Отмена
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="startAnalysisBtn">
+                            <span class="btn-text">Начать анализ</span>
+                            <div class="btn-loader hidden">
+                                <div class="spinner"></div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal" id="analysisResultsModal">
+        <div class="modal-content extra-large">
+            <div class="modal-header">
+                <h2><i class="fas fa-chart-line"></i><span id="analysisResultsTitle">Результаты анализа</span></h2>
+                <button class="modal-close" id="closeAnalysisResultsModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Заголовок анализа -->
+                <div class="analysis-results-header" id="analysisResultsHeader">
+                    <h3 id="analysisVideoTitleResult">Анализ видео</h3>
+                    <div class="analysis-meta-info">
+                        <span><i class="fas fa-calendar"></i> <span id="analysisDateResult">—</span></span>
+                        <span><i class="fas fa-film"></i> <span id="analysisFramesResult">—</span></span>
+                    </div>
+                </div>
+
+                <!-- Основные метрики -->
+                <div class="results-metrics-container">
+                    <h4><i class="fas fa-chart-bar"></i> Основные показатели</h4>
+                    <div class="metrics-grid-large">
+                        <div class="metric-card-large">
+                            <div class="metric-icon-large">
+                                <i class="fas fa-lungs"></i>
+                            </div>
+                            <div class="metric-content-large">
+                                <div class="metric-label-large">Частота дыхания</div>
+                                <div class="metric-value-large" id="breathingRateResultDetailed">—</div>
+                            </div>
+                        </div>
+
+                        <div class="metric-card-large">
+                            <div class="metric-icon-large">
+                                <i class="fas fa-expand-arrows-alt"></i>
+                            </div>
+                            <div class="metric-content-large">
+                                <div class="metric-label-large">Амплитуда</div>
+                                <div class="metric-value-large" id="amplitudeResultDetailed">—</div>
+                            </div>
+                        </div>
+
+                        <div class="metric-card-large">
+                            <div class="metric-icon-large">
+                                <i class="fas fa-stethoscope"></i>
+                            </div>
+                            <div class="metric-content-large">
+                                <div class="metric-label-large">Статус</div>
+                                <div class="metric-value-large" id="analysisStatusResult">—</div>
+                                <div class="metric-description-large">Анализ</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Графики анализа -->
+                <div class="analysis-plots-section" id="analysisPlotsSection">
+                    <h4><i class="fas fa-chart-area"></i> Графики анализа</h4>
+                    <div class="plots-grid-large" id="analysisPlotsGrid">
+                        <div class="plot-placeholder-large">
+                            <i class="fas fa-chart-line"></i>
+                            <p>Графики загружаются...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Детали анализа -->
+                <div class="analysis-details-section">
+                    <h4><i class="fas fa-info-circle"></i> Детали анализа</h4>
+                    <div class="details-grid">
+                        <div class="detail-item-large">
+                            <span class="detail-label-large">Цвет маркера:</span>
+                            <span class="detail-value-large" id="markerColorResult">—</span>
+                        </div>
+                        <div class="detail-item-large">
+                            <span class="detail-label-large">Размер маркера:</span>
+                            <span class="detail-value-large" id="markerSizeResult">— мм</span>
+                        </div>
+                        <div class="detail-item-large">
+                            <span class="detail-label-large">Время анализа:</span>
+                            <span class="detail-value-large" id="processingTimeResult">— сек</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Медицинская оценка -->
+                <div class="medical-assessment-section" id="medicalAssessmentSection">
+                    <h4><i class="fas fa-stethoscope"></i> Медицинская оценка</h4>
+                    <div class="assessment-content" id="medicalAssessmentContent">
+                        <p>Оценка загружается...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="closeResultsModalBtn">
+                    Закрыть
+                </button>
+            </div>
+        </div>
+    </div>
+
+        <!-- Toast Notifications -->
+        <div id="toastContainer" class="toast-container"></div>
+
+        <!-- Confirm Delete Patient Modal -->
+        <div class="modal" id="confirmDeletePatientModal">
+            <div class="modal-content confirm-modal">
+                <div class="modal-header">
+                    <h2><i class="fas fa-exclamation-triangle"></i>Подтверждение удаления</h2>
+                    <button class="modal-close" id="closeConfirmDeletePatient">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="confirm-content">
+                        <div class="confirm-icon">
+                            <i class="fas fa-user-slash"></i>
+                        </div>
+                        <div class="confirm-text">
+                            <h3>Удалить пациента?</h3>
+                            <p>Вы уверены, что хотите удалить пациента <strong id="deletePatientName">Имя Фамилия</strong>?</p>
+                            <p class="confirm-warning">Это действие нельзя отменить. Все связанные видео и данные будут удалены безвозвратно.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="cancelDeletePatient">
+                        Отмена
+                    </button>
+                    <button class="btn btn-danger" id="confirmDeletePatient">
+                        <i class="fas fa-trash"></i>
+                        Удалить пациента
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirm Delete Video Modal -->
+        <div class="modal" id="confirmDeleteVideoModal">
+            <div class="modal-content confirm-modal">
+                <div class="modal-header">
+                    <h2><i class="fas fa-exclamation-triangle"></i>Подтверждение удаления</h2>
+                    <button class="modal-close" id="closeConfirmDeleteVideo">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="confirm-content">
+                        <div class="confirm-icon">
+                            <i class="fas fa-video-slash"></i>
+                        </div>
+                        <div class="confirm-text">
+                            <h3>Удалить видео?</h3>
+                            <p>Вы уверены, что хотите удалить видео <strong id="deleteVideoName">Название видео</strong>?</p>
+                            <p class="confirm-warning">Это действие нельзя отменить. Видеофайл и все связанные данные анализа будут удалены безвозвратно.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="cancelDeleteVideo">
+                        Отмена
+                    </button>
+                    <button class="btn btn-danger" id="confirmDeleteVideo">
+                        <i class="fas fa-trash"></i>
+                        Удалить видео
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirm Delete Analysis Modal -->
+        <div class="modal" id="confirmDeleteAnalysisModal">
+            <div class="modal-content confirm-modal">
+                <div class="modal-header">
+                    <h2><i class="fas fa-exclamation-triangle"></i>Подтверждение удаления</h2>
+                    <button class="modal-close" id="closeConfirmDeleteAnalysis">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="confirm-content">
+                        <div class="confirm-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="confirm-text">
+                            <h3>Удалить анализ?</h3>
+                            <p>Вы уверены, что хотите удалить анализ <strong id="deleteAnalysisId">#0</strong> от <strong id="deleteAnalysisDate">—</strong>?</p>
+                            <p class="confirm-warning">Это действие нельзя отменить. Все результаты анализа будут удалены безвозвратно.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="cancelDeleteAnalysis">
+                        Отмена
+                    </button>
+                    <button class="btn btn-danger" id="confirmDeleteAnalysis">
+                        <i class="fas fa-trash"></i>
+                        Удалить анализ
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- Модульные скрипты -->
+    <script type="module" src="utils/constants.js"></script>
+    <script type="module" src="utils/validators.js"></script>
+    <script type="module" src="utils/formatters.js"></script>
+
+    <script type="module" src="components/Toast.js"></script>
+
+    <script type="module" src="classes/PDFReportGenerator.js"></script>
+    <script type="module" src="classes/CustomSelect.js"></script>
+    <script type="module" src="classes/AuthApp.js"></script>
+    <script type="module" src="classes/PatientManager.js"></script>
+    <script type="module" src="classes/PatientVideoManager.js"></script>
+    <script type="module" src="classes/RespiratoryAnalysisManager.js"></script>
+
+    <!-- Главный файл инициализации -->
+    <script type="module" src="app.js"></script>
+</body>
+</html>
