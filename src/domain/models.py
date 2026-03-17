@@ -68,14 +68,13 @@ class RespiratoryAnalysis(Base):
     patient_id = Column(Integer, ForeignKey("patients.id"))
     video_id = Column(Integer, ForeignKey("patient_videos.id"))
 
-    marker_color = Column(String, default="red")  # red, blue, green
+    marker_color = Column(String, default="red")
     marker_size_mm = Column(Float, default=18.0)
 
-    status = Column(String, default="pending")  # pending, processing, completed, failed
+    status = Column(String, default="pending")
     error_message = Column(Text, nullable=True)
     processing_time_seconds = Column(Float, nullable=True)
 
-    # Основные результаты
     breathing_rate_mean_bpm = Column(Float, nullable=True)
     amplitude_mean_mm = Column(Float, nullable=True)
     total_frames = Column(Integer, nullable=True)
