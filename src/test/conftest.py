@@ -12,7 +12,7 @@ if src_path not in sys.path:
     sys.path.insert(0, src_path)
     print(f"Added {src_path} to sys.path")
 
-from domain import models
+from domain import models, schemas
 from infrastructure.async_db import Base
 import api.users.file_views as file_views_module
 
@@ -22,7 +22,6 @@ def mock_db():
     """Фикстура для мока базы данных"""
     db = AsyncMock(spec=AsyncSession)
 
-    # Настраиваем основные методы
     db.execute = AsyncMock()
     db.add = MagicMock()
     db.commit = AsyncMock()
@@ -247,4 +246,54 @@ def auth_headers():
 def mock_current_user(mock_user):
     """Фикстура для мока текущего пользователя"""
     return mock_user
+
+
+@pytest.fixture
+def mock_patient():
+    """Фикстура для мока пациента"""
+    patient = MagicMock(spec=models.Patient)
+    patient.id = 1
+    patient.doctor_id = 1
+    patient.name = "Test"
+    patient.surname = "Patient"
+    patient.last_name = "Testovich"
+    patient.email = "patient@example.com"
+    patient.age = 30
+    patient.gender = "male"
+    patient.height = 175.5
+    patient.weight = 70.5
+    patient.bmi = 22.9
+    patient.smoking_status = "nonsmoker"
+    patient.smoking_years = 0
+    patient.created_at = datetime.now(timezone.utc)
+    patient.updated_at = datetime.now(timezone.utc)
+    return patient
+
+
+@pytest.fixture
+def mock_patient_create_data():
+    """Фикстура для данных создания пациента"""
+    return schemas.PatientCreate(
+        name="Иван",
+        surname="Иванов",
+        last_name="Петрович",
+        email="ivan@example.com",
+        age=30,
+        gender=schemas.Gender.male,
+        height=175.5,
+        weight=70.5,
+        smoking_status=schemas.SmokingStatus.nonsmoker,
+        smoking_years=0
+    )
+
+
+@pytest.fixture
+def mock_patient_update_data():
+    """Фикстура для данных обновления пациента"""
+    return schemas.PatientUpdate(
+        name="Петр",
+        age=35,
+        height=180.0,
+        weight=75.0
+    )
 
