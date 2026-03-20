@@ -59,12 +59,12 @@ class TestVideoUtils:
     async def test_delete_video_from_disk(self, tmp_path):
         """Тест удаления видео с диска"""
         test_file = tmp_path / "test_video.mp4"
-        test_file.write_text("test content")
+        test_file.write_text("tests content")
 
         test_dir = tmp_path / "patient_dir"
         test_dir.mkdir()
         test_file_in_dir = test_dir / "video.mp4"
-        test_file_in_dir.write_text("test content")
+        test_file_in_dir.write_text("tests content")
 
         await delete_video_from_disk(str(test_file))
         assert not test_file.exists()

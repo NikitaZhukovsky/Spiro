@@ -43,8 +43,8 @@ def mock_respiratory_analysis():
     analysis.width_line_2_plot = "/path/to/plot2.png"
     analysis.width_line_3_plot = "/path/to/plot3.png"
     analysis.summary_plot = "/path/to/summary.png"
-    analysis.parameters_json = json.dumps({"test": "data"})
-    analysis.line_results_json = json.dumps({"line_1": {"test": "data"}})
+    analysis.parameters_json = json.dumps({"tests": "data"})
+    analysis.line_results_json = json.dumps({"line_1": {"tests": "data"}})
     analysis.error_message = None
     analysis.created_at = datetime.now(timezone.utc)
     analysis.completed_at = datetime.now(timezone.utc)
@@ -671,8 +671,8 @@ class TestDeleteAnalysis:
             with patch('api.respiratory_analysis.get_plots_directory') as mock_plots_dir:
                 mock_plots_dir.return_value = tmp_path
 
-                test_file = tmp_path / "test.png"
-                test_file.write_text("test")
+                test_file = tmp_path / "tests.png"
+                test_file.write_text("tests")
 
                 mock_db.delete = AsyncMock()
                 mock_db.commit = AsyncMock()

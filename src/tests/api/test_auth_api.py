@@ -24,7 +24,6 @@ class TestRegisterAPI:
     """Тесты для эндпоинта регистрации"""
 
     async def test_register_success(self, mock_db):
-        # Arrange
         user_data = schemas.UserCreate(
             email="new@example.com",
             name="New",
@@ -71,7 +70,7 @@ class TestLoginAPI:
 
     async def test_login_success(self, mock_db, mock_user):
         login_data = schemas.LoginRequest(
-            email="test@example.com",
+            email="tests@example.com",
             password="password123"
         )
 
@@ -88,7 +87,7 @@ class TestLoginAPI:
 
     async def test_login_invalid_credentials(self, mock_db):
         login_data = schemas.LoginRequest(
-            email="test@example.com",
+            email="tests@example.com",
             password="wrong_password"
         )
 

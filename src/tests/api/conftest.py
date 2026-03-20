@@ -7,10 +7,9 @@ from datetime import datetime, timezone
 from fastapi import UploadFile
 from io import BytesIO
 
-src_path = str(Path(__file__).parent.parent)
+src_path = str(Path(__file__).parent.parent.parent)
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
-    print(f"Added {src_path} to sys.path")
 
 from domain import models, schemas
 from infrastructure.async_db import Base
@@ -42,7 +41,7 @@ def mock_user():
     """Фикстура для мока пользователя"""
     user = MagicMock(spec=models.User)
     user.id = 1
-    user.email = "test@example.com"
+    user.email = "tests@example.com"
     user.name = "Test"
     user.surname = "User"
     user.hashed_password = "$2b$12$KIXZQYxVjXQYxVjXQYxVjXQYxVjXQYxVjXQYxVjXQYxVjXQYxVjX"
