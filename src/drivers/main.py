@@ -4,7 +4,6 @@ from api.respiratory_analysis import router as respiratory_analysis_router
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-# Импортируем схему безопасности
 from fastapi.security import OAuth2PasswordBearer
 
 
@@ -15,14 +14,12 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
-    # Добавляем схемы безопасности в OpenAPI
     swagger_ui_init_oauth={
         "usePkceWithAuthorizationCodeGrant": True,
         "clientId": "swagger-ui",
     }
 )
 
-# Определяем схему безопасности глобально
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 app.add_middleware(
@@ -37,3 +34,4 @@ app.include_router(auth.router)
 app.include_router(file_views.router)
 app.include_router(patients.router)
 app.include_router(respiratory_analysis_router)
+

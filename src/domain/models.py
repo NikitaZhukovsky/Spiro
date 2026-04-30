@@ -15,7 +15,6 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_doctor = Column(Boolean, default=True)
 
-    # Связи
     patients = relationship("Patient", back_populates="doctor", cascade="all, delete-orphan")
 
 
@@ -40,7 +39,6 @@ class Patient(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    # Связи
     doctor = relationship("User", back_populates="patients")
     videos = relationship("PatientVideo", back_populates="patient", cascade="all, delete-orphan")
     respiratory_analyses = relationship("RespiratoryAnalysis", back_populates="patient", cascade="all, delete-orphan")
