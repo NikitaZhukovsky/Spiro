@@ -22,7 +22,6 @@ class RespiratoryAnalysisService:
 
     _processed_videos_count = 0
 
-    # Диапазоны HSV для цветовых маркеров
     COLOR_RANGES = {
         "red": {
             "lower1": np.array([0, 150, 100], dtype=np.uint8),
@@ -61,21 +60,17 @@ class RespiratoryAnalysisService:
         Returns:
             Бинарная маска человека
         """
-        # Конвертация в LAB пространство
         lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
         h, w = lab.shape[:2]
         lab_2d = lab.reshape(-1, 3)
 
-        # K-means кластеризация на 2 кластера (человек/фон)
         kmeans = KMeans(n_clusters=2, random_state=42, n_init=5)
         labels = kmeans.fit_predict(lab_2d)
         centers = kmeans.cluster_centers_
 
-        # Определяем фон как более темный кластер
         bg_label = 0 if np.sum(centers[0]) < np.sum(centers[1]) else 1
         person_mask = (labels != bg_label).astype(np.uint8).reshape(h, w)
 
-        # Морфологические операции для очистки маски
         kernel = np.ones((5, 5), np.uint8)
         person_mask = cv2.morphologyEx(person_mask, cv2.MORPH_OPEN, kernel, iterations=2)
         return cv2.morphologyEx(person_mask, cv2.MORPH_CLOSE, kernel, iterations=2)
@@ -100,22 +95,18 @@ class RespiratoryAnalysisService:
         # Конвертация в HSV для цветовой сегментации
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-        # Создание маски по первому диапазону
         mask1 = cv2.inRange(hsv, config["lower1"], config["upper1"])
 
-        # Для красного цвета используем два диапазона (по обе стороны от H=0)
         if config["lower2"] is not None and config["upper2"] is not None:
             mask2 = cv2.inRange(hsv, config["lower2"], config["upper2"])
             mask = cv2.bitwise_or(mask1, mask2)
         else:
             mask = mask1
 
-        # Очистка маски морфологическими операциями
         kernel = np.ones((3, 3), np.uint8)
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=2)
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
 
-        # Поиск контуров
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         markers = []
@@ -127,7 +118,6 @@ class RespiratoryAnalysisService:
             x, y, w, h = cv2.boundingRect(cnt)
             aspect_ratio = float(w) / h
 
-            # Фильтрация по форме (близкой к квадрату)
             if 0.7 < aspect_ratio < 1.4:
                 markers.append((x, y, w, h, x + w // 2, y + h // 2))
 
@@ -154,12 +144,12 @@ class RespiratoryAnalysisService:
         if y_pos >= img_shape[0]:
             return None, None
 
-        # Находим границы на заданной строке
+
         row = mask[y_pos, :]
         left = np.argmax(row > 0)
         right = len(row) - np.argmax(row[::-1] > 0) - 1
 
-        if left >= right:  # Нет пересечения
+        if left >= right:
             return None, None
 
         return left, right
@@ -219,7 +209,6 @@ class RespiratoryAnalysisService:
 
             def update(self, detected_markers: List[Tuple]) -> List[Tuple]:
                 """Обновление трекеров на основе новых обнаружений"""
-                # Удаляем старые маркеры
                 for marker_id in list(self.markers.keys()):
                     if self.markers[marker_id]['missing'] > self.max_missing_frames:
                         del self.markers[marker_id]
@@ -227,13 +216,11 @@ class RespiratoryAnalysisService:
                 if len(detected_markers) == 0:
                     return []
 
-                # Инициализация при первом кадре
                 if len(self.markers) == 0:
                     for marker in detected_markers:
                         self._add_marker(marker)
                     return [(m[0], m[1], m[2], m[3], m[4], m[5], i) for i, m in enumerate(detected_markers)]
 
-                # Сопоставление новых маркеров с существующими
                 matched_ids = []
                 matched_markers = []
 
@@ -253,19 +240,16 @@ class RespiratoryAnalysisService:
                             best_match_id = marker_id
 
                     if best_match_id is not None:
-                        # Обновляем существующий маркер
                         self.markers[best_match_id]['positions'].append((marker[4], marker[5]))
                         self.markers[best_match_id]['missing'] = 0
                         matched_ids.append(best_match_id)
                         matched_markers.append((marker[0], marker[1], marker[2], marker[3],
                                                 marker[4], marker[5], best_match_id))
                     else:
-                        # Добавляем новый маркер
                         self._add_marker(marker)
                         matched_markers.append((marker[0], marker[1], marker[2], marker[3],
                                                 marker[4], marker[5], self.next_id - 1))
 
-                # Увеличиваем счетчик пропущенных кадров для несопоставленных маркеров
                 for marker_id in self.markers:
                     if marker_id not in matched_ids:
                         self.markers[marker_id]['missing'] += 1
@@ -289,7 +273,6 @@ class RespiratoryAnalysisService:
                 self.frame_count = 0
                 self.fps = fps
 
-                # Сырые данные для дополнительных расчетов
                 self.raw_width_history = [deque(maxlen=max_history) for _ in range(num_lines)]
 
                 self.parameters = {
@@ -320,13 +303,11 @@ class RespiratoryAnalysisService:
                             self.width_history[i].append(np.nan)
                             self.raw_width_history[i].append(np.nan)
 
-                # Обновление статистики
                 if any(w is not None for w in widths_mm):
                     self.frames_with_markers += 1
                 else:
                     self.frames_without_markers += 1
 
-                # Периодический пересчет параметров
                 if self.frame_count % 10 == 0 and len(self.time_history) > 30:
                     self._calculate_parameters()
 
@@ -422,7 +403,6 @@ class RespiratoryAnalysisService:
                         breathing_rate_bpm = dominant_freq * 60
                         breathing_amplitude = np.std(detrended) * 2
 
-                        # Поиск пиков для анализа регулярности
                         peaks, _ = signal.find_peaks(detrended,
                                                      height=np.std(detrended),
                                                      distance=int(sampling_rate / 2))
@@ -448,7 +428,6 @@ class RespiratoryAnalysisService:
                     return 0
 
                 try:
-                    # Фильтрация для выделения дыхательного сигнала
                     b, a = signal.butter(3, [0.1, 2.0], btype='band', fs=self.fps)
                     filtered = signal.filtfilt(b, a, signal_data)
                     noise = signal_data - filtered
@@ -527,12 +506,10 @@ class RespiratoryAnalysisService:
 
                 return formatted_results
 
-        # Инициализация компонентов анализа
         scale_converter = ScaleConverter(marker_size_mm=marker_size_mm)
         respiratory_analyzer = RespiratoryAnalyzer(num_lines=3, max_history=1000)
         marker_tracker = MarkerTracker()
 
-        # Открытие видео
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
             raise ValueError(f"Не удалось открыть видео файл: {video_path}")
@@ -548,7 +525,6 @@ class RespiratoryAnalysisService:
 
         frame_count = 0
 
-        # Основной цикл обработки кадров
         while True:
             ret, frame = cap.read()
             if not ret:
@@ -556,12 +532,10 @@ class RespiratoryAnalysisService:
 
             frame_count += 1
 
-            # Обновление прогресса
             if progress_callback and frame_count % 10 == 0:
                 progress = min(10 + (frame_count / total_frames) * 70, 80)
                 progress_callback("Обработка видео", progress, frame_count, total_frames)
 
-            # 1. Сегментация человека
             person_mask = cls.segment_person_kmeans(frame)
             contours, _ = cv2.findContours(person_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -571,7 +545,6 @@ class RespiratoryAnalysisService:
 
             person_contour = max(contours, key=cv2.contourArea)
 
-            # 2. Обнаружение маркеров
             markers = cls.detect_markers(frame, marker_color)
             body_markers = []
 
@@ -586,11 +559,9 @@ class RespiratoryAnalysisService:
                                 if 0.5 * median_size < max(m[2], m[3]) < 1.5 * median_size]
                 scale_converter.update_scale(median_size)
 
-            # 3. Трекинг маркеров
             tracked_markers = marker_tracker.update(body_markers)
-            tracked_markers.sort(key=lambda m: (m[5], m[4]))  # Сортировка по Y координате
+            tracked_markers.sort(key=lambda m: (m[5], m[4]))
 
-            # 4. Измерение ширины тела на уровне маркеров
             current_widths = [None, None, None]
             for i, (x, y, w, h, cX, cY, marker_id) in enumerate(tracked_markers[:3]):
                 left, right = cls.get_contour_edges_at_y(person_contour, cY, frame.shape)
@@ -599,7 +570,6 @@ class RespiratoryAnalysisService:
                     line_width_mm = scale_converter.px_to_mm(right - left)
                     current_widths[i] = line_width_mm
 
-            # 5. Обновление анализатора
             respiratory_analyzer.update(current_widths)
 
         cap.release()
@@ -609,10 +579,8 @@ class RespiratoryAnalysisService:
 
         processing_time = (datetime.now() - start_time).total_seconds()
 
-        # Получение результатов анализа
         results = respiratory_analyzer.get_results()
 
-        # Создание графиков
         try:
             if progress_callback:
                 progress_callback("Создание графиков", 90, frame_count, total_frames)
@@ -631,7 +599,6 @@ class RespiratoryAnalysisService:
             plots = {}
             plots_dir = ""
 
-        # Создание текстового отчета
         try:
             if progress_callback:
                 progress_callback("Генерация отчета", 95, frame_count, total_frames)
@@ -640,7 +607,6 @@ class RespiratoryAnalysisService:
         except Exception as e:
             text_report = "Ошибка при создании отчета"
 
-        # Медицинская оценка
         try:
             medical_assessment = cls._get_medical_assessment(results)
         except Exception as e:
@@ -649,7 +615,6 @@ class RespiratoryAnalysisService:
         if progress_callback:
             progress_callback("Завершение", 100, frame_count, total_frames)
 
-        # Формирование результата, соответствующего модели
         return {
             "results": results,
             "plots": plots,
@@ -684,7 +649,6 @@ class RespiratoryAnalysisService:
         else:
             frontend_dir = Path("static")
 
-        # Создание пути: frontend/analysis_plots/patient_id/analysis_id/
         plots_dir = frontend_dir / "analysis_plots" / str(patient_id) / str(analysis_id)
         return str(plots_dir)
 
@@ -694,7 +658,6 @@ class RespiratoryAnalysisService:
         plots = {}
         os.makedirs(output_dir, exist_ok=True)
 
-        # График для каждой линии измерения
         for i, history in enumerate(analyzer.width_history):
             if len(history) < 10:
                 continue
@@ -712,7 +675,6 @@ class RespiratoryAnalysisService:
 
                 plt.plot(time_data, clean_history, linewidth=2, label=f'Линия {i + 1}')
 
-                # Сглаживание для лучшей визуализации
                 if len(clean_history) > 30:
                     valid_indices = [idx for idx, val in enumerate(clean_history) if val is not None]
                     if valid_indices:
@@ -740,7 +702,6 @@ class RespiratoryAnalysisService:
             except Exception:
                 continue
 
-        # Сводный график всех линий
         if any(len(h) > 10 for h in analyzer.width_history):
             try:
                 plt.figure(figsize=(12, 6))
@@ -765,7 +726,6 @@ class RespiratoryAnalysisService:
                 plt.legend()
                 plt.grid(True, alpha=0.3)
 
-                # Добавление информации о частоте дыхания
                 if analyzer.parameters.get('global', {}).get('breathing_rate_mean_bpm'):
                     rate = analyzer.parameters['global']['breathing_rate_mean_bpm']
                     plt.figtext(0.02, 0.98, f'Средняя частота дыхания: {rate:.1f} вдох/мин',
@@ -810,7 +770,6 @@ class RespiratoryAnalysisService:
         else:
             report += "Нет глобальных данных для отчета\n\n"
 
-        # Детальная информация по каждой линии
         for i, line_data in enumerate(results.get('lines', [])):
             report += f"ЛИНИЯ {i + 1}:\n"
             report += "-" * 30 + "\n"

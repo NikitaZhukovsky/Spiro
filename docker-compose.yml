@@ -27,6 +27,7 @@ services:
       - "8000:8000"
     volumes:
       - ./src:/app
+      - shared_plots:/app/frontend/analysis_plots
     depends_on:
       - postgres
     working_dir: /app
@@ -39,6 +40,10 @@ services:
       - "3000:80"
     volumes:
       - ./frontend:/usr/share/nginx/html:ro
+      - shared_plots:/usr/share/nginx/html/analysis_plots
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:
+  shared_plots:
