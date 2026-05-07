@@ -1,5 +1,17 @@
+// utils/constants.js
+
+// Динамическое определение базового URL
+const getBaseUrl = () => {
+    // Если мы на Render (production)
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        return 'https://spiro-dp7k.onrender.com';
+    }
+    // Локальная разработка
+    return 'http://localhost:8000';
+};
+
 export const APP_CONFIG = {
-    BASE_URL: 'http://localhost:8000',
+    BASE_URL: getBaseUrl(),  // ← ТОЛЬКО ЭТА СТРОКА ИЗМЕНЕНА
     MAX_FILE_SIZE: 500 * 1024 * 1024, // 500MB
     SUPPORTED_VIDEO_TYPES: ['video/mp4', 'video/avi', 'video/mov', 'video/wmv'],
     PDF_CONFIG: {
@@ -35,7 +47,7 @@ export const TEXT = {
     }
 };
 
-// Маршруты API
+// Маршруты API - НЕ МЕНЯЮТСЯ (относительные пути)
 export const API_ENDPOINTS = {
     AUTH: {
         LOGIN: '/auth/login/',
@@ -81,3 +93,4 @@ export const ANALYSIS_CONFIG = {
         MAX: 100
     }
 };
+
