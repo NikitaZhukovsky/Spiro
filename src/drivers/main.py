@@ -1,10 +1,10 @@
+import os
 from fastapi import FastAPI
 from api.users import auth, patients, file_views
 from api.respiratory_analysis import router as respiratory_analysis_router
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-
-# Импортируем схему безопасности
+from pathlib import Path
 from fastapi.security import OAuth2PasswordBearer
 
 
@@ -27,7 +27,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "https://spiro-frontend.onrender.com",],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -37,3 +37,10 @@ app.include_router(auth.router)
 app.include_router(file_views.router)
 app.include_router(patients.router)
 app.include_router(respiratory_analysis_router)
+
+@app.on_event("startup")
+async def startup_event():
+    """Создаёт папку для загрузок при запуске"""
+    upload_dir = Path("uploads")  # замените на путь к вашей папке с файлами
+    upload_dir.mkdir(exist_ok=True)
+    print(f"Директория для загрузок: {upload_dir.absolute()}")

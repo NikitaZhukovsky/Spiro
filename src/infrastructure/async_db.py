@@ -1,41 +1,34 @@
+import os
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 
-from core.config import DB_HOST, DB_NAME, DB_PASS, DB_USER
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Асинхронный URL для FastAPI
-ASYNC_SQLALCHEMY_DATABASE_URL = (
-    f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}"
-)
+if DATABASE_URL:
+    ASYNC_SQLALCHEMY_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+    SYNC_SQLALCHEMY_DATABASE_URL = DATABASE_URL
+else:
+    DB_HOST = os.getenv("DB_HOST", "localhost")
+    DB_NAME = os.getenv("DB_NAME", "spiro")
+    DB_USER = os.getenv("DB_USER", "postgres")
+    DB_PASS = os.getenv("DB_PASS", "14092004NikZuk")
+    DB_PORT = os.getenv("DB_PORT", "5432")
 
-# Синхронный URL для фоновых задач (убираем asyncpg)
-SYNC_SQLALCHEMY_DATABASE_URL = (
-    f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}"
-)
+    ASYNC_SQLALCHEMY_DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    SYNC_SQLALCHEMY_DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
+# Всё остальное оставляем без изменений
 Base = declarative_base()
-
-# Асинхронный движок для FastAPI
 async_engine = create_async_engine(ASYNC_SQLALCHEMY_DATABASE_URL)
-
-# Синхронный движок для фоновых задач
 sync_engine = create_engine(SYNC_SQLALCHEMY_DATABASE_URL)
 
-# Асинхронная сессия
 AsyncSessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=async_engine,
-    class_=AsyncSession
+    autocommit=False, autoflush=False, bind=async_engine, class_=AsyncSession
 )
-
-# Синхронная сессия (для фоновых задач)
 SyncSessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=sync_engine
+    autocommit=False, autoflush=False, bind=sync_engine
 )
 
 
