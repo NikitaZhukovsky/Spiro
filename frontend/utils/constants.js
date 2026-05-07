@@ -11,7 +11,7 @@ const getBaseUrl = () => {
 };
 
 export const APP_CONFIG = {
-    BASE_URL: getBaseUrl(),  // ← ТОЛЬКО ЭТА СТРОКА ИЗМЕНЕНА
+    BASE_URL: getBaseUrl(),  // ← ИЗМЕНЕНО: теперь динамический
     MAX_FILE_SIZE: 500 * 1024 * 1024, // 500MB
     SUPPORTED_VIDEO_TYPES: ['video/mp4', 'video/avi', 'video/mov', 'video/wmv'],
     PDF_CONFIG: {
@@ -47,11 +47,11 @@ export const TEXT = {
     }
 };
 
-// Маршруты API - НЕ МЕНЯЮТСЯ (относительные пути)
+// Маршруты API - ИСПРАВЛЕНЫ (без слешей для AUTH)
 export const API_ENDPOINTS = {
     AUTH: {
-        LOGIN: '/auth/login/',
-        REGISTER: '/auth/register/'
+        LOGIN: '/auth/login',      // ← убран слеш в конце
+        REGISTER: '/auth/register' // ← убран слеш в конце
     },
     PATIENTS: {
         BASE: '/patients/',
@@ -93,4 +93,3 @@ export const ANALYSIS_CONFIG = {
         MAX: 100
     }
 };
-
