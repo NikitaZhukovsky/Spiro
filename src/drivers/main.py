@@ -15,19 +15,17 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
-    # Добавляем схемы безопасности в OpenAPI
     swagger_ui_init_oauth={
         "usePkceWithAuthorizationCodeGrant": True,
         "clientId": "swagger-ui",
     }
 )
 
-# Определяем схему безопасности глобально
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "https://spiro-frontend.onrender.com",],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "https://spiro-web.onrender.com",],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
