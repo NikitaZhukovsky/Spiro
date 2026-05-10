@@ -255,78 +255,40 @@ def save_analysis_results_sync(analysis_id: int, patient_id: int, results: dict,
 
 def save_plots_to_frontend(analysis: RespiratoryAnalysis, patient_id: int, analysis_id: int, results: dict):
     """Сохранить графики в frontend директорию и обновить ссылки в БД"""
-    frontend_plots_dir = get_plots_directory(patient_id, analysis_id)
 
     plots = results.get("plots", {})
     service_plots_dir = results.get("plots_directory", "")
 
-    def save_plot(plot_key: str, plot_name: str, analysis_field: str) -> bool:
-        if plot_key in plots:
-            source_path = plots[plot_key]
-            if source_path and os.path.exists(source_path):
-                return copy_plot_to_frontend(source_path, plot_name, analysis_field)
+    # Если файлы уже в правильном месте, просто сохраняем пути
+    if service_plots_dir and os.path.exists(service_plots_dir):
 
-        if service_plots_dir:
-            possible_filenames = [
-                f"{plot_name}.png",
-                f"{plot_key}.png",
-                f"{plot_name}_{analysis_id}.png"
+        # Проверяем существование файлов
+        for i in range(1, 4):
+            # Пробуем разные варианты имен
+            possible_names = [
+                f"width_line_{i}_{analysis_id}.png",
+                f"width_line_{i}.png"
             ]
 
-            for filename in possible_filenames:
-                source_path = os.path.join(service_plots_dir, filename)
-                if os.path.exists(source_path):
-                    return copy_plot_to_frontend(source_path, plot_name, analysis_field)
-        return False
+            for name in possible_names:
+                file_path = os.path.join(service_plots_dir, name)
+                if os.path.exists(file_path):
+                    if i == 1:
+                        analysis.width_line_1_plot = file_path
+                    elif i == 2:
+                        analysis.width_line_2_plot = file_path
+                    elif i == 3:
+                        analysis.width_line_3_plot = file_path
+                    print(f"[DEBUG] Found {name}")
+                    break
 
-    def copy_plot_to_frontend(source_path: str, plot_name: str, analysis_field: str) -> bool:
-        try:
-            filename = f"{plot_name}_{analysis_id}.png"
-            frontend_dest_path = frontend_plots_dir / filename
-
-            shutil.copy2(source_path, frontend_dest_path)
-            setattr(analysis, analysis_field, str(frontend_dest_path))
-            return True
-        except Exception:
-            return False
-
-    plots_to_save = [
-        ("width_line_1", "width_line_1", "width_line_1_plot"),
-        ("width_line_2", "width_line_2", "width_line_2_plot"),
-        ("width_line_3", "width_line_3", "width_line_3_plot"),
-        ("summary_plot", "summary_plot", "summary_plot")
-    ]
-
-    plots_saved = []
-    for plot_key, plot_name, field_name in plots_to_save:
-        if save_plot(plot_key, plot_name, field_name):
-            plots_saved.append(plot_key)
-
-    if not plots_saved and service_plots_dir and os.path.exists(service_plots_dir):
-        for filename in os.listdir(service_plots_dir):
-            if not filename.endswith('.png'):
-                continue
-
-            plot_type = None
-            field_name = None
-
-            if 'width_line_1' in filename or 'line_1' in filename:
-                plot_type = 'width_line_1'
-                field_name = 'width_line_1_plot'
-            elif 'width_line_2' in filename or 'line_2' in filename:
-                plot_type = 'width_line_2'
-                field_name = 'width_line_2_plot'
-            elif 'width_line_3' in filename or 'line_3' in filename:
-                plot_type = 'width_line_3'
-                field_name = 'width_line_3_plot'
-            elif 'summary' in filename:
-                plot_type = 'summary_plot'
-                field_name = 'summary_plot'
-
-            if plot_type and field_name and plot_type not in plots_saved:
-                source_path = os.path.join(service_plots_dir, filename)
-                if copy_plot_to_frontend(source_path, plot_type, field_name):
-                    plots_saved.append(plot_type)
+        # Для summary plot
+        for name in [f"summary_plot_{analysis_id}.png", "summary_plot.png"]:
+            file_path = os.path.join(service_plots_dir, name)
+            if os.path.exists(file_path):
+                analysis.summary_plot = file_path
+                print(f"[DEBUG] Found {name}")
+                break
 
 
 def save_analysis_data(analysis: RespiratoryAnalysis, results: dict):
