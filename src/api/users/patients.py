@@ -123,13 +123,11 @@ async def update_patient(
     if 'smoking_status' in update_data and update_data['smoking_status'] is not None:
         update_data['smoking_status'] = update_data['smoking_status'].value
 
-    # Пересчитываем ИМТ если нужно
     if 'weight' in update_data or 'height' in update_data:
         weight = update_data.get('weight', patient.weight)
         height = update_data.get('height', patient.height)
         update_data['bmi'] = calculate_bmi(weight, height)
 
-    # Обновляем поля
     for field, value in update_data.items():
         setattr(patient, field, value)
 

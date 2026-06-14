@@ -87,7 +87,6 @@ async def upload_patient_video(
         current_user: User = Depends(get_current_active_user),
 ):
     """Загрузить видео для пациента"""
-    # Проверяем существование пациента и принадлежность врачу
     patient = await get_patient_by_id(db, patient_id, current_user.id)
     if not patient:
         raise HTTPException(
@@ -95,7 +94,6 @@ async def upload_patient_video(
             detail="Patient not found"
         )
 
-    # Проверяем тип файла
     if file.content_type not in ALLOWED_VIDEO_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

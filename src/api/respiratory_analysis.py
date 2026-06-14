@@ -24,7 +24,6 @@ from domain.schemas import (
 
 router = APIRouter(prefix="/respiratory-analysis", tags=["Respiratory Analysis"])
 
-
 PROJECT_ROOT = Path.cwd().parent
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 
@@ -48,17 +47,21 @@ def get_plots_directory(patient_id: int, analysis_id: int) -> Path:
     return FRONTEND_PLOTS_DIR / str(patient_id) / str(analysis_id)
 
 
-def update_analysis_progress(analysis_id: int, stage: str, progress: float,
-                             frames_processed: int = None, total_frames: int = None):
+def update_analysis_progress(
+        analysis_id: int,
+        stage: str,
+        progress: float,
+        frames_processed: int = None,
+        total_frames: int = None
+):
     """Обновить прогресс анализа"""
-    progress_data = {
+    _analysis_progress[analysis_id] = {
         "stage": stage,
         "progress": progress,
         "frames_processed": frames_processed,
         "total_frames": total_frames,
         "last_update": datetime.now().timestamp()
     }
-    _analysis_progress[analysis_id] = progress_data
 
     if frames_processed is not None and total_frames is not None:
         print(f"Анализ {analysis_id}: {stage} - {progress:.1f}% ({frames_processed}/{total_frames} кадров)")
@@ -77,17 +80,20 @@ def clear_analysis_progress(analysis_id: int):
         del _analysis_progress[analysis_id]
 
 
-async def get_video_path(db: AsyncSession, video_id: int, patient_id: int, user_id: int) -> str:
+async def get_video_path(
+        db: AsyncSession,
+        video_id: int,
+        patient_id: int,
+        user_id: int
+) -> str:
     """Получить путь к видео по ID с проверкой прав"""
     result = await db.execute(
-        select(Patient).where(
+        select(Patient.id).where(
             Patient.id == patient_id,
             Patient.doctor_id == user_id
         )
     )
-    patient = result.scalars().first()
-
-    if not patient:
+    if not result.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied to this patient"
@@ -116,7 +122,51 @@ async def get_video_path(db: AsyncSession, video_id: int, patient_id: int, user_
     return str(video_path)
 
 
-async def get_analysis_by_id(db: AsyncSession, analysis_id: int, user_id: int) -> RespiratoryAnalysis:
+async def get_patient_info(
+        db: AsyncSession,
+        patient_id: int,
+        user_id: int
+) -> Dict[str, Any]:
+    """
+    Явная загрузка скалярных полей пациента.
+    Возвращает простой словарь без ORM объектов.
+    Исправляет MissingGreenlet при передаче данных в фоновую задачу.
+    """
+    result = await db.execute(
+        select(
+            Patient.id,
+            Patient.name,
+            Patient.surname,
+            Patient.gender,
+            Patient.age,
+        ).where(
+            Patient.id == patient_id,
+            Patient.doctor_id == user_id,
+        )
+    )
+    row = result.first()
+
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Patient not found"
+        )
+
+    full_name = " ".join(filter(None, [row.name, row.surname])) or "Не указано"
+
+    return {
+        "id":        row.id,
+        "full_name": full_name,
+        "gender":    row.gender or "Не указан",
+        "age":       row.age,
+    }
+
+
+async def get_analysis_by_id(
+        db: AsyncSession,
+        analysis_id: int,
+        user_id: int
+) -> RespiratoryAnalysis:
     """Получить анализ по ID с проверкой прав"""
     result = await db.execute(
         select(RespiratoryAnalysis)
@@ -153,7 +203,11 @@ async def analyze_respiratory_movements(
             detail="Patient not found"
         )
 
-    video_path = await get_video_path(db, analysis_request.video_id, patient_id, current_user.id)
+    patient_info = await get_patient_info(db, patient_id, current_user.id)
+
+    video_path = await get_video_path(
+        db, analysis_request.video_id, patient_id, current_user.id
+    )
 
     analysis = RespiratoryAnalysis(
         patient_id=patient_id,
@@ -177,7 +231,10 @@ async def analyze_respiratory_movements(
         patient_id=patient_id,
         video_path=video_path,
         marker_color=analysis_request.marker_color.value,
-        marker_size_mm=analysis_request.marker_size_mm
+        marker_size_mm=analysis_request.marker_size_mm,
+        patient_name=patient_info["full_name"],
+        patient_gender=patient_info["gender"],
+        patient_age=patient_info["age"],
     )
 
     return RespiratoryAnalysisResponse.model_validate(analysis)
@@ -188,12 +245,19 @@ def process_respiratory_analysis_sync(
         patient_id: int,
         video_path: str,
         marker_color: str,
-        marker_size_mm: float
+        marker_size_mm: float,
+        patient_name: str = "Не указано",
+        patient_gender: str = "Не указан",
+        patient_age: Any = None,
 ):
     start_time = datetime.now()
 
-    def progress_callback(stage: str, progress: float, frames_processed: int = None, total_frames: int = None):
-        """Callback для обновления прогресса анализа"""
+    def progress_callback(
+            stage: str,
+            progress: float,
+            frames_processed: int = None,
+            total_frames: int = None
+    ):
         update_analysis_progress(analysis_id, stage, progress, frames_processed, total_frames)
 
     try:
@@ -204,7 +268,10 @@ def process_respiratory_analysis_sync(
             progress_callback=lambda stage, progress, frames_processed, total_frames:
             progress_callback(stage, progress, frames_processed, total_frames),
             patient_id=patient_id,
-            analysis_id=analysis_id
+            analysis_id=analysis_id,
+            patient_name=patient_name,
+            patient_gender=patient_gender,
+            patient_age=patient_age,
         )
 
         save_analysis_results_sync(analysis_id, patient_id, results, start_time)
@@ -214,8 +281,12 @@ def process_respiratory_analysis_sync(
     finally:
         clear_analysis_progress(analysis_id)
 
-
-def save_analysis_results_sync(analysis_id: int, patient_id: int, results: dict, start_time: datetime):
+def save_analysis_results_sync(
+        analysis_id: int,
+        patient_id: int,
+        results: dict,
+        start_time: datetime
+):
     session = SyncSessionLocal()
 
     try:
@@ -231,15 +302,15 @@ def save_analysis_results_sync(analysis_id: int, patient_id: int, results: dict,
         analysis.breathing_rate_mean_bpm = global_results.get("breathing_rate_mean_bpm")
         analysis.amplitude_mean_mm = global_results.get("amplitude_mean_mm")
         analysis.total_frames = results.get("total_frames")
-
-        analysis.medical_assessment = results.get("medical_assessment") or global_results.get("medical_assessment")
+        analysis.medical_assessment = (
+                results.get("medical_assessment")
+                or global_results.get("medical_assessment")
+        )
 
         save_plots_to_frontend(analysis, patient_id, analysis_id, results)
-
         save_analysis_data(analysis, results)
 
         analysis.text_report = results.get("text_report")
-
         analysis.status = "completed"
         analysis.completed_at = datetime.now()
         analysis.processing_time_seconds = (datetime.now() - start_time).total_seconds()
@@ -248,17 +319,40 @@ def save_analysis_results_sync(analysis_id: int, patient_id: int, results: dict,
 
     except Exception as e:
         session.rollback()
-        save_analysis_error_sync(analysis_id, f"Ошибка сохранения результатов: {str(e)}", start_time)
+        save_analysis_error_sync(
+            analysis_id,
+            f"Ошибка сохранения результатов: {str(e)}",
+            start_time
+        )
     finally:
         session.close()
 
 
-def save_plots_to_frontend(analysis: RespiratoryAnalysis, patient_id: int, analysis_id: int, results: dict):
+def save_plots_to_frontend(
+        analysis: RespiratoryAnalysis,
+        patient_id: int,
+        analysis_id: int,
+        results: dict
+):
     """Сохранить графики в frontend директорию и обновить ссылки в БД"""
     frontend_plots_dir = get_plots_directory(patient_id, analysis_id)
 
     plots = results.get("plots", {})
     service_plots_dir = results.get("plots_directory", "")
+
+    def copy_plot_to_frontend(
+            source_path: str,
+            plot_name: str,
+            analysis_field: str
+    ) -> bool:
+        try:
+            filename = f"{plot_name}_{analysis_id}.png"
+            frontend_dest_path = frontend_plots_dir / filename
+            shutil.copy2(source_path, frontend_dest_path)
+            setattr(analysis, analysis_field, str(frontend_dest_path))
+            return True
+        except Exception:
+            return False
 
     def save_plot(plot_key: str, plot_name: str, analysis_field: str) -> bool:
         if plot_key in plots:
@@ -267,34 +361,22 @@ def save_plots_to_frontend(analysis: RespiratoryAnalysis, patient_id: int, analy
                 return copy_plot_to_frontend(source_path, plot_name, analysis_field)
 
         if service_plots_dir:
-            possible_filenames = [
+            for filename in [
                 f"{plot_name}.png",
                 f"{plot_key}.png",
                 f"{plot_name}_{analysis_id}.png"
-            ]
-
-            for filename in possible_filenames:
+            ]:
                 source_path = os.path.join(service_plots_dir, filename)
                 if os.path.exists(source_path):
                     return copy_plot_to_frontend(source_path, plot_name, analysis_field)
+
         return False
-
-    def copy_plot_to_frontend(source_path: str, plot_name: str, analysis_field: str) -> bool:
-        try:
-            filename = f"{plot_name}_{analysis_id}.png"
-            frontend_dest_path = frontend_plots_dir / filename
-
-            shutil.copy2(source_path, frontend_dest_path)
-            setattr(analysis, analysis_field, str(frontend_dest_path))
-            return True
-        except Exception:
-            return False
 
     plots_to_save = [
         ("width_line_1", "width_line_1", "width_line_1_plot"),
         ("width_line_2", "width_line_2", "width_line_2_plot"),
         ("width_line_3", "width_line_3", "width_line_3_plot"),
-        ("summary_plot", "summary_plot", "summary_plot")
+        ("summary_plot", "summary_plot", "summary_plot"),
     ]
 
     plots_saved = []
@@ -302,66 +384,75 @@ def save_plots_to_frontend(analysis: RespiratoryAnalysis, patient_id: int, analy
         if save_plot(plot_key, plot_name, field_name):
             plots_saved.append(plot_key)
 
-    if not plots_saved and service_plots_dir and os.path.exists(service_plots_dir):
+    # Fallback — ищем по паттернам в именах файлов
+    # Нужно для графиков MedicalVideoAnalyzer
+    if service_plots_dir and os.path.exists(service_plots_dir):
+        pattern_map = [
+            (['marker_1_detail', 'marker1'], 'width_line_1', 'width_line_1_plot'),
+            (['marker_2_detail', 'marker2'], 'width_line_2', 'width_line_2_plot'),
+            (['marker_3_detail', 'marker3'], 'width_line_3', 'width_line_3_plot'),
+            (['dashboard', 'summary', 'overview'], 'summary_plot', 'summary_plot'),
+        ]
+
         for filename in os.listdir(service_plots_dir):
             if not filename.endswith('.png'):
                 continue
 
-            plot_type = None
-            field_name = None
+            fname_lower = filename.lower()
 
-            if 'width_line_1' in filename or 'line_1' in filename:
-                plot_type = 'width_line_1'
-                field_name = 'width_line_1_plot'
-            elif 'width_line_2' in filename or 'line_2' in filename:
-                plot_type = 'width_line_2'
-                field_name = 'width_line_2_plot'
-            elif 'width_line_3' in filename or 'line_3' in filename:
-                plot_type = 'width_line_3'
-                field_name = 'width_line_3_plot'
-            elif 'summary' in filename:
-                plot_type = 'summary_plot'
-                field_name = 'summary_plot'
-
-            if plot_type and field_name and plot_type not in plots_saved:
-                source_path = os.path.join(service_plots_dir, filename)
-                if copy_plot_to_frontend(source_path, plot_type, field_name):
-                    plots_saved.append(plot_type)
+            for patterns, plot_name, field_name in pattern_map:
+                plot_key = field_name.replace('_plot', '')
+                if plot_key in plots_saved:
+                    continue
+                if any(p in fname_lower for p in patterns):
+                    source_path = os.path.join(service_plots_dir, filename)
+                    if copy_plot_to_frontend(source_path, plot_name, field_name):
+                        plots_saved.append(plot_key)
+                    break
 
 
 def save_analysis_data(analysis: RespiratoryAnalysis, results: dict):
     """Сохранить данные анализа в формате JSON"""
     analysis_results = results.get("results", {})
 
-    if analysis_results:
-        analysis.parameters_json = json.dumps(analysis_results, ensure_ascii=False, indent=2)
+    if not analysis_results:
+        return
 
-        if 'lines' in analysis_results:
-            line_results_dict = {}
-            for i, line_data in enumerate(analysis_results['lines']):
-                breathing = line_data.get('breathing', {})
-                statistical = line_data.get('statistical', {})
+    analysis.parameters_json = json.dumps(
+        analysis_results, ensure_ascii=False, indent=2
+    )
 
-                line_results_dict[f"line_{i + 1}"] = {
-                    'breathing_rate_mean_bpm': breathing.get('rate_bpm'),
-                    'amplitude_mean_mm': breathing.get('amplitude_mm'),
-                    'amplitude_mm': line_data.get('amplitude_mm', []),
-                    'peaks': line_data.get('peaks', []),
-                    'troughs': line_data.get('troughs', []),
-                    'timestamps': line_data.get('timestamps', []),
-                    'normalized_width': line_data.get('normalized_width', []),
-                    'statistical': statistical,
-                    'breathing': breathing,
-                    'signal_quality': line_data.get('signal_quality', {})
-                }
+    if 'lines' in analysis_results:
+        line_results_dict = {}
+        for i, line_data in enumerate(analysis_results['lines']):
+            breathing   = line_data.get('breathing',   {})
+            statistical = line_data.get('statistical', {})
 
-            analysis.line_results_json = json.dumps(line_results_dict, ensure_ascii=False, indent=2)
+            line_results_dict[f"line_{i + 1}"] = {
+                'breathing_rate_mean_bpm': breathing.get('rate_bpm'),
+                'amplitude_mean_mm':       breathing.get('amplitude_mm'),
+                'amplitude_mm':            line_data.get('amplitude_mm',     []),
+                'peaks':                   line_data.get('peaks',            []),
+                'troughs':                 line_data.get('troughs',          []),
+                'timestamps':              line_data.get('timestamps',       []),
+                'normalized_width':        line_data.get('normalized_width', []),
+                'statistical':             statistical,
+                'breathing':               breathing,
+                'signal_quality':          line_data.get('signal_quality',   {}),
+            }
+
+        analysis.line_results_json = json.dumps(
+            line_results_dict, ensure_ascii=False, indent=2
+        )
 
 
-def save_analysis_error_sync(analysis_id: int, error_message: str, start_time: datetime):
+def save_analysis_error_sync(
+        analysis_id: int,
+        error_message: str,
+        start_time: datetime
+):
     """Сохранить ошибку анализа в БД (синхронно)"""
     session = SyncSessionLocal()
-
     try:
         analysis = session.query(RespiratoryAnalysis).filter(
             RespiratoryAnalysis.id == analysis_id
@@ -370,7 +461,9 @@ def save_analysis_error_sync(analysis_id: int, error_message: str, start_time: d
         if analysis:
             analysis.status = "failed"
             analysis.error_message = error_message[:1000]
-            analysis.processing_time_seconds = (datetime.now() - start_time).total_seconds()
+            analysis.processing_time_seconds = (
+                    datetime.now() - start_time
+            ).total_seconds()
             session.commit()
     finally:
         session.close()
@@ -382,7 +475,7 @@ async def get_analysis_status(
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(get_current_active_user),
 ):
-    """Получить статус анализа (только ID и прогресс в процентах)"""
+    """Получить статус анализа"""
     result = await db.execute(
         select(RespiratoryAnalysis)
         .join(Patient)
@@ -426,12 +519,10 @@ async def get_analysis_results(
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(get_current_active_user),
 ):
-    """
-    Получить результаты анализа
-    """
+    """Получить результаты анализа"""
     analysis = await get_analysis_by_id(db, analysis_id, current_user.id)
 
-    response_data = RespiratoryAnalysisDetailResponse(
+    return RespiratoryAnalysisDetailResponse(
         id=analysis.id,
         patient_id=analysis.patient_id,
         video_id=analysis.video_id,
@@ -453,28 +544,26 @@ async def get_analysis_results(
         summary_plot=analysis.summary_plot
     )
 
-    return response_data
 
-
-def parse_line_results(line_results_json: Optional[str]) -> Optional[Dict[str, LineResultDetail]]:
+def parse_line_results(
+        line_results_json: Optional[str]
+) -> Optional[Dict[str, LineResultDetail]]:
     """Парсить JSON с результатами линий"""
     if not line_results_json:
         return None
 
     try:
-        line_results_data = json.loads(line_results_json)
+        data = json.loads(line_results_json)
         line_results = {}
 
-        if isinstance(line_results_data, dict):
-            for line_key, line_data in line_results_data.items():
+        if isinstance(data, dict):
+            for key, line_data in data.items():
                 if isinstance(line_data, dict):
-                    line_results[line_key] = create_line_result_detail(line_data)
-
-        elif isinstance(line_results_data, list):
-            for i, line_data in enumerate(line_results_data):
+                    line_results[key] = create_line_result_detail(line_data)
+        elif isinstance(data, list):
+            for i, line_data in enumerate(data):
                 if isinstance(line_data, dict):
-                    line_key = f"line_{i + 1}"
-                    line_results[line_key] = create_line_result_detail(line_data)
+                    line_results[f"line_{i + 1}"] = create_line_result_detail(line_data)
 
         return line_results
 
@@ -486,7 +575,6 @@ def parse_parameters(parameters_json: Optional[str]) -> Optional[Dict]:
     """Парсить JSON с параметрами анализа"""
     if not parameters_json:
         return None
-
     try:
         return json.loads(parameters_json)
     except json.JSONDecodeError:
@@ -513,9 +601,7 @@ async def get_patient_analyses(
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(get_current_active_user),
 ):
-    """
-    Получить все анализы пациента
-    """
+    """Получить все анализы пациента"""
     patient = await get_patient_by_id(db, patient_id, current_user.id)
     if not patient:
         raise HTTPException(
@@ -536,7 +622,9 @@ async def get_patient_analyses(
         response_dict = analysis_data.model_dump()
 
         if include_plots and analysis.status == "completed" and analysis.summary_plot:
-            response_dict["summary_plot_url"] = f"/respiratory-analysis/{analysis.id}/plot/summary_plot"
+            response_dict["summary_plot_url"] = (
+                f"/respiratory-analysis/{analysis.id}/plot/summary_plot"
+            )
 
         response.append(response_dict)
 
@@ -571,9 +659,9 @@ async def get_all_plots_urls(
 
     return {
         "analysis_id": analysis.id,
-        "status": analysis.status,
-        "plots_urls": plots_urls,
-        "plot_count": len(plots_urls)
+        "status":      analysis.status,
+        "plots_urls":  plots_urls,
+        "plot_count":  len(plots_urls)
     }
 
 
@@ -588,7 +676,6 @@ async def delete_analysis(
 
     try:
         frontend_plots_dir = get_plots_directory(analysis.patient_id, analysis_id)
-
         deleted_files = []
 
         if frontend_plots_dir.exists():
@@ -598,7 +685,6 @@ async def delete_analysis(
                     deleted_files.append(str(plot_file))
                 except Exception as e:
                     raise e
-
             try:
                 frontend_plots_dir.rmdir()
                 deleted_files.append(f"Директория: {frontend_plots_dir}")
@@ -609,9 +695,9 @@ async def delete_analysis(
         await db.commit()
 
         return {
-            "message": "Analysis deleted successfully",
+            "message":       "Analysis deleted successfully",
             "deleted_files": deleted_files,
-            "analysis_id": analysis_id
+            "analysis_id":   analysis_id
         }
 
     except Exception as e:
@@ -676,4 +762,3 @@ async def get_video_analyses(
         response.append(analysis_data.model_dump())
 
     return response
-

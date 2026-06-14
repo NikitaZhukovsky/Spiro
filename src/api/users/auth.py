@@ -243,5 +243,5 @@ async def refresh_token(refresh_token: str, db: AsyncSession = Depends(get_db)):
     return {
         "access_token": new_access_token,
         "token_type": "bearer"
-    }
 
+    }

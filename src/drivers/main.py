@@ -14,15 +14,13 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
-    openapi_url="/openapi.json",
-    # Добавляем схемы безопасности в OpenAPI
     swagger_ui_init_oauth={
         "usePkceWithAuthorizationCodeGrant": True,
         "clientId": "swagger-ui",
     }
 )
 
-# Определяем схему безопасности глобально
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 app.add_middleware(
