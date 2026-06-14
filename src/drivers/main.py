@@ -4,7 +4,6 @@ from api.respiratory_analysis import router as respiratory_analysis_router
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-# Импортируем схему безопасности
 from fastapi.security import OAuth2PasswordBearer
 
 
