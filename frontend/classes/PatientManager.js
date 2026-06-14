@@ -813,13 +813,33 @@ export class PatientManager {
                 `${this.baseURL}${API_ENDPOINTS.PATIENTS.BASE}`;
             const method = patientId ? 'PUT' : 'POST';
 
+
+            const cleanedData = {};
+            for (const [key, value] of Object.entries(patientData)) {
+                if (value !== null && value !== undefined && value !== '') {
+                    if (key === 'gender') {
+                        cleanedData[key] = value === 'male' || value === 'female' ? value : null;
+                    }
+                    else if (key === 'smoking_status') {
+                        cleanedData[key] = value === 'non_smoker' || value === 'active_smoker' || value === 'passive_smoker'
+                            ? value : null;
+                    }
+                    else {
+                        cleanedData[key] = value;
+                    }
+                } else if (key === 'smoking_years' && value === null) {
+                    cleanedData[key] = null;
+                }
+            }
+
+            console.log('Отправляемые данные:', cleanedData);
             const response = await fetch(url, {
                 method: method,
                 headers: {
                     'Authorization': `Bearer ${this.authApp.accessToken}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(patientData)
+                body: JSON.stringify(cleanedData)
             });
 
             if (response.ok) {
@@ -835,9 +855,11 @@ export class PatientManager {
                 }
             } else {
                 const error = await response.json();
+                console.error('Ошибка сервера:', error);
                 Toast.show('Ошибка', error.detail || 'Произошла ошибка', 'error');
             }
         } catch (error) {
+            console.error('Ошибка сети:', error);
             Toast.show('Ошибка сети', 'Проверьте подключение к серверу', 'error');
         } finally {
             this.authApp.setLoadingState(submitBtn, false);
